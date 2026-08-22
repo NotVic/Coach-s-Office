@@ -65,24 +65,31 @@ Your tokens are stored only in the local SQLite database (`./data/` — see
 
 1. In Portainer: **Stacks → Add stack → Repository**.
 2. Repository URL: this repo's GitHub URL; Compose path: `docker-compose.yml`.
-3. Add environment variables in Portainer's stack UI if you want to
-   pre-fill `CHPP_CONSUMER_KEY`/`CHPP_CONSUMER_SECRET`, or set
-   `APP_PASSWORD` to put the whole app behind HTTP Basic Auth (recommended
-   if it's reachable from outside your LAN — it's off by default, which is
-   fine for LAN-only access).
+3. Add environment variables in Portainer's stack UI as needed:
+   - `HOST_PORT` — if port 3000 is already taken on your server, set this to
+     whatever's free (e.g. `HOST_PORT=3010`). The container's internal port
+     always stays 3000; only the host-side mapping changes.
+   - `CHPP_CONSUMER_KEY` / `CHPP_CONSUMER_SECRET` — optional pre-fill.
+   - `APP_PASSWORD` — puts the whole app behind HTTP Basic Auth (recommended
+     if it's reachable from outside your LAN — it's off by default, which is
+     fine for LAN-only access).
 4. Deploy. Portainer builds the image from the `Dockerfile` in this repo
-   and starts it on port 3000, with a named volume for the database so data
-   survives restarts/redeploys.
-5. Open `http://<your-server>:3000` and finish the connect flow above.
+   and starts it, with a named volume for the database so data survives
+   restarts/redeploys.
+5. Open `http://<your-server>:<HOST_PORT or 3000>` and finish the connect
+   flow above.
 
 To update after pulling new commits: redeploy the stack in Portainer (or
 pull + `docker compose up -d --build` directly on the server).
 
 ## Environment variables
 
-See [.env.example](.env.example) for the full list — `PORT`, `DATA_DIR`,
-`APP_PASSWORD` (optional shared-password gate), and `CHPP_CONSUMER_KEY` /
-`CHPP_CONSUMER_SECRET` (optional pre-fill; can also be entered in Settings).
+See [.env.example](.env.example) for the full list — `PORT` (app-internal,
+only relevant when running outside Docker), `HOST_PORT` (docker-compose
+only — which host port maps to the container, in case 3000 is taken),
+`DATA_DIR`, `APP_PASSWORD` (optional shared-password gate), and
+`CHPP_CONSUMER_KEY` / `CHPP_CONSUMER_SECRET` (optional pre-fill; can also be
+entered in Settings).
 
 ## Troubleshooting
 
