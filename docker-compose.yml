@@ -1,0 +1,22 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - coachs-office-data:/app/data
+    environment:
+      - PORT=3000
+      - DATA_DIR=/app/data
+      # Uncomment and set to protect the app with a shared password (HTTP
+      # Basic Auth) — recommended if this is reachable from outside your LAN.
+      # - APP_PASSWORD=change-me
+      #
+      # Optional: pre-fill CHPP consumer keys instead of pasting them into
+      # the Settings page after first boot.
+      # - CHPP_CONSUMER_KEY=
+      # - CHPP_CONSUMER_SECRET=
+    restart: unless-stopped
+
+volumes:
+  coachs-office-data:

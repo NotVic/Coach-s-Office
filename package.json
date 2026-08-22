@@ -1,0 +1,20 @@
+{
+  "name": "coachs-office",
+  "version": "0.1.0",
+  "description": "Coach's Office — a companion dashboard for Hattrick: squad overview, player detail, and next-match prep, backed by the CHPP API.",
+  "private": true,
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "fast-xml-parser": "^5.11.0",
+    "oauth-1.0a": "^2.2.6"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

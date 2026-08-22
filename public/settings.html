@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coach's Office — Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body data-page="settings">
+<div class="app-shell">
+<nav class="nav" id="nav"></nav>
+<main class="main" style="max-width:760px;">
+
+  <div class="page-head"><div><h1>Settings</h1><div class="sub">Connect your Hattrick account and set your sync schedule.</div></div></div>
+
+  <div id="connectCard" class="card" style="margin-bottom:20px;">Loading…</div>
+  <div id="scheduleCard" class="card" style="margin-bottom:20px;">Loading…</div>
+
+  <div class="card">
+    <h3 style="margin-bottom:8px;">About the estimates on this dashboard</h3>
+    <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 8px;">
+      Hattrick doesn't publish its training-speed or transfer-value formulas, and CHPP doesn't expose a player's
+      fractional progress toward their next skill level. Rather than guess at Hattrick's internal math, Coach's
+      Office estimates training ETAs from <em>this app's own tracked history</em> for each player, and shows
+      transfer value as a transparent, order-of-magnitude estimate based on TSI and age. Both are always shown
+      as a range with a <code>~</code>, never a confident single number — treat them as a starting point for your
+      own judgement.
+    </p>
+  </div>
+
+</main>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/settings.js"></script>
+</body>
+</html>

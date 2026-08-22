@@ -1,0 +1,187 @@
+/* ==========================================================================
+   Coach's Office — Design Tokens
+   Every color, spacing, radius, and font value the app's CSS references by
+   custom property. Add a new token here before hand-rolling a new hex value
+   elsewhere.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ---- Surfaces ---- */
+  --sb-page:            #f9f9f7;   /* page background / canvas */
+  --sb-surface:         #ffffff;   /* card / tile background */
+  --sb-surface-sunken:  #fcfcfb;   /* chart plot surface, table stripe */
+  --sb-surface-raised:  #ffffff;   /* modal / popover (with shadow) */
+
+  /* ---- Ink ---- */
+  --sb-text-primary:    #0b0b0b;
+  --sb-text-secondary:  #52514e;
+  --sb-text-muted:      #898781;   /* axis labels, captions, placeholder */
+  --sb-text-on-accent:  #ffffff;
+
+  /* ---- Structure ---- */
+  --sb-border:          rgba(11, 11, 11, 0.10);
+  --sb-border-strong:   rgba(11, 11, 11, 0.16);
+  --sb-gridline:        #e1e0d9;   /* chart gridlines only */
+  --sb-baseline:        #c3c2b7;   /* chart axis/baseline only */
+
+  /* ---- Brand accent (muted green — primary) ---- */
+  --sb-accent:          #3e7a57;
+  --sb-accent-hover:    #336449;
+  --sb-accent-active:   #294f3a;
+  --sb-accent-tint-10:  rgba(62, 122, 87, 0.08);
+  --sb-accent-tint-20:  rgba(62, 122, 87, 0.16);
+
+  /* ---- Brand accent-gold (muted gold — secondary, used sparingly) ---- */
+  --sb-accent-gold:         #a9822e;
+  --sb-accent-gold-hover:   #8c6b25;
+  --sb-accent-gold-active:  #715519;
+  --sb-accent-gold-tint-10: rgba(169, 130, 46, 0.08);
+  --sb-accent-gold-tint-20: rgba(169, 130, 46, 0.16);
+
+  /* ---- Status (fixed — never themed, never reused as chart identity) ---- */
+  --sb-status-good:      #0ca30c;
+  --sb-status-warning:   #fab219;
+  --sb-status-serious:   #ec835a;
+  --sb-status-critical:  #d03b3b;
+  --sb-status-good-text:     #006300;
+  --sb-status-critical-text: #b3261e;
+
+  /* ---- Chart categorical (fixed order — never cycle, never reassign) ---- */
+  --sb-series-1: #2a78d6;  /* blue    */
+  --sb-series-2: #eb6834;  /* orange  */
+  --sb-series-3: #1baf7a;  /* aqua    */
+  --sb-series-4: #eda100;  /* yellow  */
+  --sb-series-5: #e87ba4;  /* magenta */
+  --sb-series-6: #008300;  /* green   */
+  --sb-series-7: #4a3aa7;  /* violet  */
+  --sb-series-8: #e34948;  /* red     */
+
+  /* ---- Sequential (single-hue, magnitude) — blue ramp ---- */
+  --sb-seq-100: #cde2fb; --sb-seq-150: #b7d3f6; --sb-seq-200: #9ec5f4;
+  --sb-seq-250: #86b6ef; --sb-seq-300: #6da7ec; --sb-seq-350: #5598e7;
+  --sb-seq-400: #3987e5; --sb-seq-450: #2a78d6; --sb-seq-500: #256abf;
+  --sb-seq-550: #1c5cab; --sb-seq-600: #184f95; --sb-seq-650: #104281;
+  --sb-seq-700: #0d366b;
+
+  /* ---- Diverging (blue / red, gray midpoint) ---- */
+  --sb-div-neg-3: #0d366b; --sb-div-neg-2: #256abf; --sb-div-neg-1: #6da7ec;
+  --sb-div-mid:   #f0efec;
+  --sb-div-pos-1: #f0a3a2; --sb-div-pos-2: #e34948; --sb-div-pos-3: #a32424;
+
+  /* ---- Position-line pills ---- */
+  --sb-line-gk: #52514e;   /* goalkeeper   — neutral ink tint */
+  --sb-line-def: #256abf;  /* defense      — blue tint  */
+  --sb-line-mid: #1baf7a;  /* midfield     — aqua tint  */
+  --sb-line-att: #eb6834;  /* attack       — orange tint */
+
+  /* ---- Radius ---- */
+  --sb-radius-sm: 6px;   --sb-radius-md: 10px;  --sb-radius-lg: 14px;  --sb-radius-full: 999px;
+
+  /* ---- Spacing scale (8px base) ---- */
+  --sb-space-1: 4px;  --sb-space-2: 8px;   --sb-space-3: 12px;
+  --sb-space-4: 16px; --sb-space-5: 24px;  --sb-space-6: 32px;
+  --sb-space-7: 48px; --sb-space-8: 64px;
+
+  /* ---- Elevation ---- */
+  --sb-shadow-card:  0 1px 2px rgba(11,11,11,0.04), 0 1px 1px rgba(11,11,11,0.03);
+  --sb-shadow-raised: 0 8px 24px rgba(11,11,11,0.12), 0 2px 6px rgba(11,11,11,0.06);
+
+  /* ---- Typography ---- */
+  --sb-font-display: "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --sb-font-body:    "Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --sb-font-mono:    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+/* ===== Dark mode: OS preference (only when no explicit theme stamp) ===== */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --sb-page:            #0d0d0d;
+    --sb-surface:         #161615;
+    --sb-surface-sunken:  #1a1a19;
+    --sb-surface-raised:  #1e1e1c;
+
+    --sb-text-primary:    #ffffff;
+    --sb-text-secondary:  #c3c2b7;
+    --sb-text-muted:      #898781;
+    --sb-text-on-accent:  #ffffff;
+
+    --sb-border:          rgba(255, 255, 255, 0.10);
+    --sb-border-strong:   rgba(255, 255, 255, 0.16);
+    --sb-gridline:        #2c2c2a;
+    --sb-baseline:        #383835;
+
+    --sb-accent:          #5fa37d;
+    --sb-accent-hover:    #78b896;
+    --sb-accent-active:   #91c9ab;
+    --sb-accent-tint-10:  rgba(95, 163, 125, 0.12);
+    --sb-accent-tint-20:  rgba(95, 163, 125, 0.22);
+
+    --sb-accent-gold:         #d2ae5e;
+    --sb-accent-gold-hover:   #dec07c;
+    --sb-accent-gold-active:  #e9d19b;
+    --sb-accent-gold-tint-10: rgba(210, 174, 94, 0.12);
+    --sb-accent-gold-tint-20: rgba(210, 174, 94, 0.22);
+
+    --sb-status-good-text:     #0ca30c;
+    --sb-status-critical-text: #e66767;
+
+    --sb-series-2: #d95926; --sb-series-3: #199e70; --sb-series-4: #c98500;
+    --sb-series-5: #d55181; --sb-series-7: #9085e9; --sb-series-8: #e66767;
+
+    --sb-div-neg-3: #cde2fb; --sb-div-neg-2: #6da7ec; --sb-div-neg-1: #3987e5;
+    --sb-div-mid:   #383835;
+    --sb-div-pos-1: #e66767; --sb-div-pos-2: #d03b3b; --sb-div-pos-3: #f0a3a2;
+
+    --sb-shadow-card:  0 1px 2px rgba(0,0,0,0.4), 0 1px 1px rgba(0,0,0,0.3);
+    --sb-shadow-raised: 0 8px 24px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3);
+  }
+}
+
+/* ===== Dark mode: explicit in-app toggle (wins over OS setting) ===== */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --sb-page:            #0d0d0d;
+  --sb-surface:         #161615;
+  --sb-surface-sunken:  #1a1a19;
+  --sb-surface-raised:  #1e1e1c;
+
+  --sb-text-primary:    #ffffff;
+  --sb-text-secondary:  #c3c2b7;
+  --sb-text-muted:      #898781;
+  --sb-text-on-accent:  #ffffff;
+
+  --sb-border:          rgba(255, 255, 255, 0.10);
+  --sb-border-strong:   rgba(255, 255, 255, 0.16);
+  --sb-gridline:        #2c2c2a;
+  --sb-baseline:        #383835;
+
+  --sb-accent:          #5fa37d;
+  --sb-accent-hover:    #78b896;
+  --sb-accent-active:   #91c9ab;
+  --sb-accent-tint-10:  rgba(95, 163, 125, 0.12);
+  --sb-accent-tint-20:  rgba(95, 163, 125, 0.22);
+
+  --sb-accent-gold:         #d2ae5e;
+  --sb-accent-gold-hover:   #dec07c;
+  --sb-accent-gold-active:  #e9d19b;
+  --sb-accent-gold-tint-10: rgba(210, 174, 94, 0.12);
+  --sb-accent-gold-tint-20: rgba(210, 174, 94, 0.22);
+
+  --sb-status-good-text:     #0ca30c;
+  --sb-status-critical-text: #e66767;
+
+  --sb-series-2: #d95926; --sb-series-3: #199e70; --sb-series-4: #c98500;
+  --sb-series-5: #d55181; --sb-series-7: #9085e9; --sb-series-8: #e66767;
+
+  --sb-div-neg-3: #cde2fb; --sb-div-neg-2: #6da7ec; --sb-div-neg-1: #3987e5;
+  --sb-div-mid:   #383835;
+  --sb-div-pos-1: #e66767; --sb-div-pos-2: #d03b3b; --sb-div-pos-3: #f0a3a2;
+
+  --sb-shadow-card:  0 1px 2px rgba(0,0,0,0.4), 0 1px 1px rgba(0,0,0,0.3);
+  --sb-shadow-raised: 0 8px 24px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3);
+}

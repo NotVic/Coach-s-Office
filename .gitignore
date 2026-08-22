@@ -1,0 +1,24 @@
+node_modules/
+
+# Design-guidelines workspace — reference material for building this app,
+# not part of the shipped product. Kept locally, not pushed to GitHub.
+squadboard/
+
+# SQLite database — holds your CHPP OAuth tokens and synced squad data.
+# Never commit this; it's a secret, not sample data.
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Environment files — CHPP consumer key/secret, APP_PASSWORD, etc.
+.env
+.env.*
+!.env.example
+
+npm-debug.log*
+.DS_Store
+Thumbs.db
