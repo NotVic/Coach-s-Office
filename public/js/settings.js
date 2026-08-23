@@ -129,13 +129,13 @@ function renderCsvCard() {
   csvCard.innerHTML = `
     <h3 style="margin-bottom:6px;">Squad data via CSV</h3>
     <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 10px;">
-      Waiting on your CHPP keys, or just prefer a spreadsheet? Import your squad from a CSV instead — it fills
-      in the dashboard, player detail, and digest the same way a real sync would.
-      <a href="/api/csv/template">Download a template ↓</a> to fill in, or fill in a copy of an
-      ${status.hasSquadData ? '<a href="/api/csv/export">export of what\'s loaded now ↓</a>' : 'export once you have data'}.
-      <b>Each import fully replaces the squad</b> — it isn't a partial patch, so a re-import with only some columns
-      filled in will blank out anything left out, not merge with what's there. Match Prep still needs a real CHPP
-      connection either way, since it needs live fixture and opponent data CSV can't provide.
+      Waiting on your CHPP keys, or just prefer a spreadsheet? Two ways in: upload a CSV export of your Hattrick
+      players directly (e.g. from Hattrick Organizer or a similar CHPP-based tool — Coach's Office recognizes
+      that column format automatically), or <a href="/api/csv/template">download our simpler template ↓</a> and
+      hand-type a squad from scratch. Either way it fills in the dashboard, player detail, and digest the same
+      way a real sync would. <b>Each import fully replaces the squad</b> — it isn't a partial patch, so a
+      re-import missing some columns blanks those out rather than merging. Match Prep still needs a real CHPP
+      connection regardless, since it needs live fixture and opponent data no CSV can provide.
     </p>
     ${isCsvSourced ? `
       <div class="banner info" style="margin-bottom:10px;">
@@ -148,6 +148,16 @@ function renderCsvCard() {
       <input type="text" id="csvTeamName" value="${isCsvSourced ? (status.teamName || '') : ''}" placeholder="e.g. My Squad">
     </div>
     <div class="field"><label for="csvFile">CSV file</label><input type="file" id="csvFile" accept=".csv,text/csv"></div>
+    <details style="margin-bottom:14px;">
+      <summary style="cursor:pointer;font-size:13px;font-weight:600;">Team finances (optional)</summary>
+      <p class="muted" style="font-size:12px;margin:6px 0;">
+        Per-player exports don't include club finances — if you want the Dashboard's weekly net income chart to
+        have something to show, copy these from Hattrick's own Club → Finances page.
+      </p>
+      <div class="field"><label for="csvCash">Cash</label><input type="text" id="csvCash" inputmode="numeric" placeholder="e.g. 500000"></div>
+      <div class="field"><label for="csvIncome">Weekly income</label><input type="text" id="csvIncome" inputmode="numeric" placeholder="e.g. 50000"></div>
+      <div class="field"><label for="csvExpenses">Weekly expenses</label><input type="text" id="csvExpenses" inputmode="numeric" placeholder="e.g. 42000"></div>
+    </details>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="pill-btn primary" id="importCsvBtn" type="button">Import CSV</button>
       ${status.hasSquadData ? '<a class="pill-btn" href="/api/csv/export">Export current squad</a>' : ''}
@@ -159,6 +169,9 @@ function renderCsvCard() {
 async function importCsv() {
   const fileInput = document.getElementById('csvFile');
   const teamName = document.getElementById('csvTeamName').value.trim();
+  const cash = document.getElementById('csvCash').value.trim();
+  const weeklyIncome = document.getElementById('csvIncome').value.trim();
+  const weeklyExpenses = document.getElementById('csvExpenses').value.trim();
   const file = fileInput.files[0];
   const btn = document.getElementById('importCsvBtn');
   if (!file) return showError('csvError', 'Choose a CSV file first.');
@@ -167,11 +180,12 @@ async function importCsv() {
   btn.textContent = 'Importing…';
   try {
     const text = await file.text();
-    const result = await apiPost('/api/csv/import', { csv: text, teamName });
+    const result = await apiPost('/api/csv/import', { csv: text, teamName, cash, weeklyIncome, weeklyExpenses });
     status = await apiGet('/api/chpp/status');
     renderCsvCard();
+    const formatNote = result.format === 'hattrick' ? ' (recognized as a Hattrick players export)' : ' (template format)';
     document.getElementById('csvError').innerHTML =
-      `<div class="banner good">Imported ${result.playerCount} players. <a href="/index.html">Go to Dashboard →</a></div>`;
+      `<div class="banner good">Imported ${result.playerCount} players${formatNote}. <a href="/index.html">Go to Dashboard →</a></div>`;
   } catch (err) {
     const rowErrors = err.data?.rowErrors || [];
     showError('csvError', [err.message, ...rowErrors.map((e) => `• ${e}`)].join('<br>'));

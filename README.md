@@ -66,21 +66,40 @@ Your tokens are stored only in the local SQLite database (`./data/` — see
 
 ## Or import a CSV instead
 
-Don't have your CHPP keys yet, or just prefer a spreadsheet? Settings also
-has a CSV import that fills in the dashboard, player detail, and digest the
-same way a real sync would (Match Prep still needs a real CHPP connection —
-it needs live fixture and opponent data a CSV can't provide). Download the
-template from Settings, fill in a row per player, and re-upload; export
-your currently-loaded squad from the same page any time (including after a
-real CHPP sync — handy as a backup or for editing offline). **Each import
-fully replaces the squad** rather than patching it, so a re-import with
-only some columns filled in blanks out anything left out — export first if
-you want to make small edits rather than retyping everything. Position and
-transfer value are derived automatically if left blank; `player_id` is
-optional too (a stable ID gets generated from the player's name so
-training-ETA history survives re-imports, as long as the name doesn't
-change between them). CSV-imported data is superseded, not merged, the
-moment you connect via CHPP for real — a real Hattrick team has a genuinely
+Don't have your CHPP keys yet, or just prefer a spreadsheet? Settings has a
+CSV import that fills in the dashboard, player detail, and digest the same
+way a real sync would (Match Prep still needs a real CHPP connection — it
+needs live fixture and opponent data a CSV can't provide). Two input
+formats are accepted, auto-detected by header row:
+
+- **A Hattrick players export**, uploaded as-is — recognized by its
+  `PlayerID`/`Name`/`Keeper`/`Last match position`-style columns (this is
+  the column set Hattrick Organizer and similar CHPP-based tools export;
+  see [server/services/csvSchema.js](server/services/csvSchema.js) for the
+  exact header names it matches). No editing needed — just upload the file.
+- **This app's own simpler template**, downloadable from Settings, for
+  hand-typing a squad from scratch — only `first_name` and `tsi` are
+  required, everything else (position, skills, specialty...) is optional.
+
+Export (also on the Settings page) always writes the template format —
+works after either a CSV import or a real CHPP sync, handy as a backup or
+for editing offline before re-importing. Per-player exports don't carry
+club finances, so there's an optional "Team finances" section in the
+import form (cash/weekly income/weekly expenses, copied from Hattrick's
+own Club → Finances page) if you want the net income chart to have
+something to show.
+
+**Each import fully replaces the squad** rather than patching it, so a
+re-import with only some columns filled in blanks out anything left out —
+export first if you want to make small edits rather than retyping
+everything. Position and transfer value are derived automatically if left
+blank; `player_id` is optional in the template format (a stable ID gets
+generated from the player's name so training-ETA history survives
+re-imports, as long as the name doesn't change between them) but required
+in a Hattrick export, since it's always present there and is what keeps
+that history stable and unambiguous. CSV-imported data is superseded, not
+merged, the moment you connect via CHPP for real — a real Hattrick team has
+a genuinely
 different team ID.
 
 ## Deploy with Portainer (git-repo stack)
