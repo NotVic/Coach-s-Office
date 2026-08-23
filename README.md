@@ -68,10 +68,16 @@ Your tokens are stored only in the local SQLite database (`./data/` — see
 
 1. In Portainer: **Stacks → Add stack → Repository**.
 2. Repository URL: this repo's GitHub URL; Compose path: `docker-compose.yml`.
-3. Add environment variables in Portainer's stack UI as needed:
+3. This repo ships a [stack.env](stack.env) with a default `HOST_PORT=3000`
+   — Portainer requires a file with that exact name to already exist in the
+   repo before its Environment Variables panel reliably applies overrides
+   for a **Repository**-type stack, so this is what makes overriding it
+   from the Portainer UI actually work (rather than silently doing nothing).
+   Only set `HOST_PORT` there — there's no `PORT` variable to set; the
+   container's internal port is always 3000 and isn't configurable, only
+   the host-side mapping is:
    - `HOST_PORT` — if port 3000 is already taken on your server, set this to
-     whatever's free (e.g. `HOST_PORT=3010`). The container's internal port
-     always stays 3000; only the host-side mapping changes.
+     whatever's free (e.g. `HOST_PORT=3010`).
    - `CHPP_CONSUMER_KEY` / `CHPP_CONSUMER_SECRET` — optional pre-fill.
    - `APP_PASSWORD` — puts the whole app behind HTTP Basic Auth (recommended
      if it's reachable from outside your LAN — it's off by default, which is
@@ -80,7 +86,8 @@ Your tokens are stored only in the local SQLite database (`./data/` — see
    and starts it, with a named volume for the database so data survives
    restarts/redeploys.
 5. Open `http://<your-server>:<HOST_PORT or 3000>` and finish the connect
-   flow above.
+   flow above. If the container has no published port afterward, see
+   Troubleshooting below.
 
 To update after pulling new commits: redeploy the stack in Portainer (or
 pull + `docker compose up -d --build` directly on the server).
@@ -110,14 +117,22 @@ entered in Settings).
   first sync or two. ETAs are derived from snapshots this app has actually
   collected since you connected, not from Hattrick directly (see "On
   estimates" above).
-- **Container has no published port after deploying in Portainer** — almost
-  always means `HOST_PORT` wasn't actually picked up (a typo'd variable
-  name is an easy one — it must be exactly `HOST_PORT`), so Docker fell
-  back to the default of 3000. If 3000 is already taken on your server,
-  the container fails to start rather than publishing on a fallback port.
-  Check the container's logs in Portainer for "port is already allocated"
-  to confirm, fix the variable name/value in the stack's environment
-  variables, and redeploy.
+- **Container has no published port after deploying in Portainer** — check,
+  in order:
+  1. The container's own detail/inspect page in Portainer (not just the
+     summary column in the Containers list, which can be misleading) — and
+     try actually browsing to the port before assuming it's wrong.
+  2. The container's logs for "port is already allocated" — this means
+     `HOST_PORT` didn't take effect and Docker fell back to the default of
+     3000, which is already in use on your server. A typo'd variable name
+     (it must be exactly `HOST_PORT`) is the easy way to cause this.
+  3. Whether [stack.env](stack.env) is present in the repo you deployed
+     from. For **Repository**-type stacks specifically, Portainer needs
+     this file to already exist in the repo for its Environment Variables
+     panel to reliably apply your overrides — without it, values typed
+     into that panel may not reach the container at all, silently. If
+     you're on a fork or an older clone that predates this file, pull the
+     latest commit and redeploy.
 
 ## What's not in v1
 
