@@ -229,5 +229,5 @@ const Charts = (() => {
     </svg>`;
   }
 
-  return { lineChart, barChart, dumbbellChart, stackedProbBar, groupedHBar, sparkline, pitchDiagram };
+  return { lineChart, barChart, divergingBarChart, dumbbellChart, stackedProbBar, groupedHBar, sparkline, pitchDiagram };
 })();
