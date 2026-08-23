@@ -1,4 +1,5 @@
 const connectCard = document.getElementById('connectCard');
+const csvCard = document.getElementById('csvCard');
 const scheduleCard = document.getElementById('scheduleCard');
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -103,6 +104,7 @@ async function verify() {
     pendingAuthorizeUrl = null;
     status = await apiGet('/api/chpp/status');
     renderConnectCard();
+    renderCsvCard(); // a successful connect just overwrote data_source with 'chpp'
   } catch (err) {
     showError('connectError', err.message);
     btn.disabled = false;
@@ -117,6 +119,65 @@ async function disconnect() {
     renderConnectCard();
   } catch (err) {
     showError('connectError', err.message);
+  }
+}
+
+// ---- CSV import/export card -----------------------------------------
+
+function renderCsvCard() {
+  const isCsvSourced = status.dataSource === 'csv';
+  csvCard.innerHTML = `
+    <h3 style="margin-bottom:6px;">Squad data via CSV</h3>
+    <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 10px;">
+      Waiting on your CHPP keys, or just prefer a spreadsheet? Import your squad from a CSV instead — it fills
+      in the dashboard, player detail, and digest the same way a real sync would.
+      <a href="/api/csv/template">Download a template ↓</a> to fill in, or fill in a copy of an
+      ${status.hasSquadData ? '<a href="/api/csv/export">export of what\'s loaded now ↓</a>' : 'export once you have data'}.
+      <b>Each import fully replaces the squad</b> — it isn't a partial patch, so a re-import with only some columns
+      filled in will blank out anything left out, not merge with what's there. Match Prep still needs a real CHPP
+      connection either way, since it needs live fixture and opponent data CSV can't provide.
+    </p>
+    ${isCsvSourced ? `
+      <div class="banner info" style="margin-bottom:10px;">
+        Currently showing CSV-imported data for "<b>${status.teamName || 'your squad'}</b>", not a live Hattrick
+        connection. Connecting to Hattrick above will replace this with your real, synced squad.
+      </div>
+    ` : ''}
+    <div id="csvError"></div>
+    <div class="field"><label for="csvTeamName">Team name</label>
+      <input type="text" id="csvTeamName" value="${isCsvSourced ? (status.teamName || '') : ''}" placeholder="e.g. My Squad">
+    </div>
+    <div class="field"><label for="csvFile">CSV file</label><input type="file" id="csvFile" accept=".csv,text/csv"></div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="pill-btn primary" id="importCsvBtn" type="button">Import CSV</button>
+      ${status.hasSquadData ? '<a class="pill-btn" href="/api/csv/export">Export current squad</a>' : ''}
+    </div>
+  `;
+  document.getElementById('importCsvBtn').addEventListener('click', importCsv);
+}
+
+async function importCsv() {
+  const fileInput = document.getElementById('csvFile');
+  const teamName = document.getElementById('csvTeamName').value.trim();
+  const file = fileInput.files[0];
+  const btn = document.getElementById('importCsvBtn');
+  if (!file) return showError('csvError', 'Choose a CSV file first.');
+
+  btn.disabled = true;
+  btn.textContent = 'Importing…';
+  try {
+    const text = await file.text();
+    const result = await apiPost('/api/csv/import', { csv: text, teamName });
+    status = await apiGet('/api/chpp/status');
+    renderCsvCard();
+    document.getElementById('csvError').innerHTML =
+      `<div class="banner good">Imported ${result.playerCount} players. <a href="/index.html">Go to Dashboard →</a></div>`;
+  } catch (err) {
+    const rowErrors = err.data?.rowErrors || [];
+    showError('csvError', [err.message, ...rowErrors.map((e) => `• ${e}`)].join('<br>'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Import CSV';
   }
 }
 
@@ -193,6 +254,7 @@ async function load() {
       apiGet('/api/settings/schedule'),
     ]);
     renderConnectCard();
+    renderCsvCard();
     renderScheduleCard();
   } catch (err) {
     connectCard.innerHTML = `<div class="banner error">${err.message}</div>`;

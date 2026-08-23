@@ -159,19 +159,33 @@ function wireFilter(data) {
   });
 }
 
+function csvSourceBanner(data) {
+  if (data.dataSource !== 'csv') return '';
+  return `<div class="banner info" style="margin-bottom:16px;">
+    This is CSV-imported data, not a live Hattrick connection — training ETAs and match ratings won't
+    accumulate history until you either re-import periodically or connect via CHPP.
+    <a href="/settings.html">Manage in Settings →</a>
+  </div>`;
+}
+
 function render(data) {
-  content.innerHTML = renderStatBar(data) + renderCharts(data)
+  content.innerHTML = csvSourceBanner(data) + renderStatBar(data) + renderCharts(data)
     + `<div class="halfway"></div>` + renderInsightRow(data)
     + renderSquad(data);
   wireFilter(data);
 }
 
+let currentDataSource = null;
+
 async function load() {
   try {
     const data = await apiGet('/api/dashboard');
     if (!data.connected) return notConnectedState();
-    pageSub.textContent = `${data.teamName || 'Your team'} · last synced ${data.lastSyncAt ? new Date(data.lastSyncAt).toLocaleString() : 'never'}`;
+    currentDataSource = data.dataSource;
+    const sourceNote = data.dataSource === 'csv' ? ' · CSV import' : '';
+    pageSub.textContent = `${data.teamName || 'Your team'} · last synced ${data.lastSyncAt ? new Date(data.lastSyncAt).toLocaleString() : 'never'}${sourceNote}`;
     syncBtn.disabled = false;
+    syncBtn.textContent = data.dataSource === 'csv' ? '↻ Manage in Settings' : '↻ Sync now';
     render(data);
   } catch (err) {
     content.innerHTML = `<div class="banner error">${err.message}</div>`;
@@ -179,6 +193,10 @@ async function load() {
 }
 
 syncBtn.addEventListener('click', async () => {
+  if (currentDataSource === 'csv') {
+    location.href = '/settings.html';
+    return;
+  }
   syncBtn.disabled = true;
   syncBtn.textContent = 'Syncing…';
   try {

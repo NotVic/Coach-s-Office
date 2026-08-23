@@ -16,6 +16,8 @@ router.get('/status', (req, res) => {
   res.json({
     consumerKeysConfigured: Boolean(consumerKey && consumerSecret),
     connected: Boolean(getSetting('chpp_access_token')),
+    hasSquadData: Boolean(getSetting('chpp_team_id')),
+    dataSource: getSetting('data_source'), // 'chpp' | 'csv' | null (no data yet)
     teamId: getSetting('chpp_team_id'),
     teamName: getSetting('chpp_team_name'),
     lastSyncAt: getSetting('last_sync_at'),

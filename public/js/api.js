@@ -1,9 +1,18 @@
 // Small fetch wrapper — every endpoint returns JSON, errors come back as
 // { error: "message" } with a non-2xx status.
+// Attaches the full response body to the thrown Error (as `.data`) so a
+// caller that needs more than the message — e.g. CSV import's per-row
+// rowErrors array — can still get at it; everyone else just reads .message.
+function apiError(path, res, data) {
+  const err = new Error(data.error || `Request to ${path} failed (${res.status}).`);
+  err.data = data;
+  return err;
+}
+
 async function apiGet(path) {
   const res = await fetch(path);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request to ${path} failed (${res.status}).`);
+  if (!res.ok) throw apiError(path, res, data);
   return data;
 }
 
@@ -14,7 +23,7 @@ async function apiPost(path, body) {
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request to ${path} failed (${res.status}).`);
+  if (!res.ok) throw apiError(path, res, data);
   return data;
 }
 

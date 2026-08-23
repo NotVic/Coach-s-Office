@@ -54,6 +54,7 @@ router.get('/', (req, res) => {
     connected: true,
     teamId,
     teamName: getSetting('chpp_team_name'),
+    dataSource: getSetting('data_source'), // 'chpp' | 'csv'
     lastSyncAt: getSetting('last_sync_at'),
     snapshots,
     latest: snapshots[snapshots.length - 1] || null,

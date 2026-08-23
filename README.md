@@ -64,6 +64,25 @@ The SQLite database is created under `./data/` (gitignored).
 Your tokens are stored only in the local SQLite database (`./data/` — see
 `.gitignore`, never commit that directory or a `.env` file).
 
+## Or import a CSV instead
+
+Don't have your CHPP keys yet, or just prefer a spreadsheet? Settings also
+has a CSV import that fills in the dashboard, player detail, and digest the
+same way a real sync would (Match Prep still needs a real CHPP connection —
+it needs live fixture and opponent data a CSV can't provide). Download the
+template from Settings, fill in a row per player, and re-upload; export
+your currently-loaded squad from the same page any time (including after a
+real CHPP sync — handy as a backup or for editing offline). **Each import
+fully replaces the squad** rather than patching it, so a re-import with
+only some columns filled in blanks out anything left out — export first if
+you want to make small edits rather than retyping everything. Position and
+transfer value are derived automatically if left blank; `player_id` is
+optional too (a stable ID gets generated from the player's name so
+training-ETA history survives re-imports, as long as the name doesn't
+change between them). CSV-imported data is superseded, not merged, the
+moment you connect via CHPP for real — a real Hattrick team has a genuinely
+different team ID.
+
 ## Deploy with Portainer (git-repo stack)
 
 1. In Portainer: **Stacks → Add stack → Repository**.
