@@ -47,8 +47,9 @@ db.exec(`
     injury_weeks     INTEGER DEFAULT 0,
     suspension_weeks INTEGER DEFAULT 0,
     transfer_listed  INTEGER DEFAULT 0,
-    contract_expiry  TEXT,
     value_estimate   INTEGER,
+    last_match_rating   REAL,
+    last_match_date     TEXT,
     is_active        INTEGER DEFAULT 1,
     updated_at       TEXT
   );
@@ -62,6 +63,8 @@ db.exec(`
     form              INTEGER,
     salary            INTEGER,
     injury_weeks      INTEGER DEFAULT 0,
+    last_match_rating REAL,
+    last_match_date   TEXT,
     skill_keeper      INTEGER,
     skill_defending   INTEGER,
     skill_playmaking  INTEGER,

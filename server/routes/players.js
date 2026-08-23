@@ -21,6 +21,10 @@ router.get('/:id', (req, res) => {
   const player = db.prepare('SELECT * FROM players WHERE player_id = ?').get(playerId);
   if (!player) return res.status(404).json({ error: 'Player not found.' });
 
+  const teamSnapshot = player.team_id
+    ? db.prepare('SELECT weekly_income FROM team_snapshots WHERE team_id = ? ORDER BY snapshot_date DESC LIMIT 1').get(player.team_id)
+    : null;
+
   const snapshots = db.prepare(
     'SELECT * FROM player_snapshots WHERE player_id = ? ORDER BY snapshot_date ASC'
   ).all(playerId);
@@ -58,12 +62,24 @@ router.get('/:id', (req, res) => {
       transferListed: Boolean(player.transfer_listed),
       valueEstimate: player.value_estimate,
       valueRange: estimateValueRange({ tsi: player.tsi, ageYears: player.age_years, specialtyId: null }),
+      // Wage in context, not a contract countdown — Hattrick players don't
+      // have contracts (only staff do), so there's nothing to count down.
+      salaryShareOfWeeklyIncome: teamSnapshot?.weekly_income
+        ? Math.round((player.salary / teamSnapshot.weekly_income) * 1000) / 10
+        : null,
     },
     skills,
     trainedSkillKey,
     tsiHistory: snapshots.map((s) => ({ date: s.snapshot_date, tsi: s.tsi })),
     valueHistory: snapshots.map((s) => ({ date: s.snapshot_date, value: s.value_estimate })),
     formHistory: snapshots.map((s) => ({ date: s.snapshot_date, form: s.form })),
+    // Sampled once per sync (whatever CHPP reports as the player's most
+    // recent match at that time), not a full match-by-match log — CHPP
+    // only exposes the single latest match per player, so this is a trend
+    // built from repeated snapshots, not a per-fixture history.
+    ratingHistory: snapshots
+      .filter((s) => s.last_match_rating != null)
+      .map((s) => ({ date: s.last_match_date || s.snapshot_date, rating: s.last_match_rating })),
   });
 });
 

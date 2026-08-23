@@ -79,6 +79,36 @@ const Charts = (() => {
     return `<svg class="chart" viewBox="0 0 ${width} ${height}" width="100%" height="${height}">${gridLines}${bodies}</svg>`;
   }
 
+  /** Signed delta around zero (e.g. weekly net income). bars: [{label, value}], blue = positive, red = negative. */
+  function divergingBarChart(bars, { width = 520, height = 170, valueFormat = (v) => Math.round(v).toLocaleString() } = {}) {
+    const padLeft = 44, padRight = 10, padTop = 10, padBottom = 26;
+    const plotW = width - padLeft - padRight, plotH = height - padTop - padBottom;
+    const clean = bars.filter((b) => b.value != null);
+    if (!clean.length) {
+      return `<svg class="chart" viewBox="0 0 ${width} ${height}" width="100%" height="${height}">
+        <text x="${width / 2}" y="${height / 2}" text-anchor="middle">No finance data yet</text></svg>`;
+    }
+    const maxAbs = Math.max(...clean.map((b) => Math.abs(b.value)), 1);
+    const zeroY = padTop + plotH / 2;
+    const gap = 10;
+    const barW = (plotW - gap * (clean.length - 1)) / clean.length;
+
+    const zeroLabel = `<line x1="${padLeft}" y1="${zeroY.toFixed(1)}" x2="${width - padRight}" y2="${zeroY.toFixed(1)}" stroke="var(--sb-baseline)" stroke-width="1"/>` +
+      `<text x="${padLeft - 6}" y="${(zeroY + 3).toFixed(1)}" text-anchor="end">0</text>`;
+
+    const bodies = clean.map((b, i) => {
+      const bx = padLeft + i * (barW + gap);
+      const h = (Math.abs(b.value) / maxAbs) * (plotH / 2);
+      const positive = b.value >= 0;
+      const by = positive ? zeroY - h : zeroY;
+      const color = positive ? 'var(--sb-div-pos-2)' : 'var(--sb-div-neg-2)';
+      return `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(h, 1).toFixed(1)}" rx="3" fill="${color}"><title>${esc(b.label)}: ${valueFormat(b.value)}</title></rect>` +
+        `<text x="${(bx + barW / 2).toFixed(1)}" y="${height - 6}" text-anchor="middle">${esc(b.label)}</text>`;
+    }).join('');
+
+    return `<svg class="chart" viewBox="0 0 ${width} ${height}" width="100%" height="${height}">${zeroLabel}${bodies}</svg>`;
+  }
+
   /** Before→after dumbbell chart. rows: [{label, from, to}], sorted by caller. */
   function dumbbellChart(rows, { width = 520, height, formatValue = (v) => (v > 0 ? '+' : '') + Math.round(v).toLocaleString() } = {}) {
     const rowH = 32;

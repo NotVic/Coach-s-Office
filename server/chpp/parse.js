@@ -99,6 +99,9 @@ function parsePlayersXml(root) {
       skills,
       positionLine: line,
       positionCode: code,
+      lastMatch: p.LastMatch
+        ? { date: p.LastMatch.Date ?? null, rating: num(p.LastMatch.Rating) }
+        : null,
     };
   });
 

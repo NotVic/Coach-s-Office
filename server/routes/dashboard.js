@@ -1,5 +1,6 @@
 const express = require('express');
 const { db, getSetting } = require('../db');
+const { buildNeedsAttention } = require('../services/changes');
 
 const router = express.Router();
 
@@ -47,6 +48,8 @@ router.get('/', (req, res) => {
   const positionComposition = { gk: 0, def: 0, mid: 0, att: 0 };
   for (const p of players) positionComposition[lineOf(p.position_code)] += 1;
 
+  const weeklyWageBill = players.reduce((sum, p) => sum + (p.salary || 0), 0);
+
   res.json({
     connected: true,
     teamId,
@@ -57,6 +60,8 @@ router.get('/', (req, res) => {
     previous: snapshots.length > 1 ? snapshots[snapshots.length - 2] : null,
     ageDistribution,
     positionComposition,
+    weeklyWageBill,
+    needsAttention: buildNeedsAttention(teamId, players),
     players: players.map(toPlayerSummary),
   });
 });

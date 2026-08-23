@@ -37,12 +37,12 @@ const upsertPlayer = db.prepare(`
     position_code, specialty, tsi, salary, form, experience, leadership,
     skill_keeper, skill_defending, skill_playmaking, skill_winger, skill_passing,
     skill_scoring, skill_setpieces, skill_stamina, injury_weeks, transfer_listed,
-    value_estimate, is_active, updated_at
+    value_estimate, last_match_rating, last_match_date, is_active, updated_at
   ) VALUES (
     @playerId, @teamId, @firstName, @lastName, @nickname, @ageYears, @ageDays,
     @positionCode, @specialty, @tsi, @salary, @form, @experience, @leadership,
     @keeper, @defending, @playmaking, @winger, @passing, @scoring, @setpieces, @stamina,
-    @injuryWeeks, @transferListed, @valueEstimate, 1, @updatedAt
+    @injuryWeeks, @transferListed, @valueEstimate, @lastMatchRating, @lastMatchDate, 1, @updatedAt
   )
   ON CONFLICT(player_id) DO UPDATE SET
     team_id = excluded.team_id, first_name = excluded.first_name, last_name = excluded.last_name,
@@ -55,6 +55,7 @@ const upsertPlayer = db.prepare(`
     skill_scoring = excluded.skill_scoring, skill_setpieces = excluded.skill_setpieces,
     skill_stamina = excluded.skill_stamina, injury_weeks = excluded.injury_weeks,
     transfer_listed = excluded.transfer_listed, value_estimate = excluded.value_estimate,
+    last_match_rating = excluded.last_match_rating, last_match_date = excluded.last_match_date,
     is_active = 1, updated_at = excluded.updated_at
 `);
 
@@ -67,15 +68,19 @@ const deactivateMissingPlayers = db.prepare(`
 const upsertPlayerSnapshot = db.prepare(`
   INSERT INTO player_snapshots (
     player_id, snapshot_date, tsi, value_estimate, form, salary, injury_weeks,
+    last_match_rating, last_match_date,
     skill_keeper, skill_defending, skill_playmaking, skill_winger,
     skill_passing, skill_scoring, skill_setpieces, skill_stamina
   ) VALUES (
     @playerId, @date, @tsi, @valueEstimate, @form, @salary, @injuryWeeks,
+    @lastMatchRating, @lastMatchDate,
     @keeper, @defending, @playmaking, @winger, @passing, @scoring, @setpieces, @stamina
   )
   ON CONFLICT(player_id, snapshot_date) DO UPDATE SET
     tsi = excluded.tsi, value_estimate = excluded.value_estimate, form = excluded.form,
-    salary = excluded.salary, injury_weeks = excluded.injury_weeks, skill_keeper = excluded.skill_keeper,
+    salary = excluded.salary, injury_weeks = excluded.injury_weeks,
+    last_match_rating = excluded.last_match_rating, last_match_date = excluded.last_match_date,
+    skill_keeper = excluded.skill_keeper,
     skill_defending = excluded.skill_defending, skill_playmaking = excluded.skill_playmaking,
     skill_winger = excluded.skill_winger, skill_passing = excluded.skill_passing,
     skill_scoring = excluded.skill_scoring, skill_setpieces = excluded.skill_setpieces,
@@ -129,12 +134,16 @@ async function runFullSync({ isInitial = false } = {}) {
         setpieces: p.skills.setpieces, stamina: p.skills.stamina,
         injuryWeeks: p.injuryLevel && p.injuryLevel > 0 ? p.injuryLevel : 0,
         transferListed: p.transferListed ? 1 : 0,
-        valueEstimate, updatedAt: new Date().toISOString(),
+        valueEstimate,
+        lastMatchRating: p.lastMatch?.rating ?? null,
+        lastMatchDate: p.lastMatch?.date ?? null,
+        updatedAt: new Date().toISOString(),
       };
       upsertPlayer.run(row);
       upsertPlayerSnapshot.run({
         playerId: p.playerId, date, tsi: p.tsi, valueEstimate, form: p.form, salary: p.salary,
         injuryWeeks: row.injuryWeeks,
+        lastMatchRating: row.lastMatchRating, lastMatchDate: row.lastMatchDate,
         keeper: p.skills.keeper, defending: p.skills.defending, playmaking: p.skills.playmaking,
         winger: p.skills.winger, passing: p.skills.passing, scoring: p.skills.scoring,
         setpieces: p.skills.setpieces, stamina: p.skills.stamina,

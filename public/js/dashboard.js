@@ -64,6 +64,56 @@ function renderCharts(data) {
   </div>`;
 }
 
+function needsAttentionRows(data) {
+  const na = data.needsAttention || {};
+  const rows = [];
+  for (const p of na.injured || []) {
+    rows.push(`<div class="player-row">
+      <a class="name" href="/player.html?id=${p.playerId}" style="color:inherit;text-decoration:none;">${p.name}</a>
+      <span class="right chip critical">injured, ~${p.weeks}w</span>
+    </div>`);
+  }
+  for (const l of na.levelUps || []) {
+    rows.push(`<div class="player-row">
+      <a class="name" href="/player.html?id=${l.playerId}" style="color:inherit;text-decoration:none;">${l.name}</a>
+      <span class="right chip good">${l.skill} ${l.from}→${l.to} — review lineup/wage</span>
+    </div>`);
+  }
+  for (const m of na.fallingValue || []) {
+    rows.push(`<div class="player-row">
+      <a class="name" href="/player.html?id=${m.playerId}" style="color:inherit;text-decoration:none;">${m.name}</a>
+      <span class="right chip warning">value est. ${formatNumber(m.delta)} — possible sell window</span>
+    </div>`);
+  }
+  return rows;
+}
+
+function renderInsightRow(data) {
+  const naRows = needsAttentionRows(data);
+  const netPoints = data.snapshots.map((s) => ({
+    label: s.snapshot_date.slice(5),
+    value: s.weekly_income != null && s.weekly_expenses != null ? s.weekly_income - s.weekly_expenses : null,
+  }));
+
+  return `<div class="grid cols-2">
+    <div class="card">
+      <h3 style="margin-bottom:8px;">Needs attention</h3>
+      ${naRows.length ? naRows.join('') : needsAttentionEmptyState(data)}
+    </div>
+    <div class="card chart-card">
+      <div class="card-head"><h3>Weekly net income</h3><span class="muted" style="font-size:12px;">income − costs, est. wage bill ${formatNumber(data.weeklyWageBill)}/wk</span></div>
+      <div class="plot">${Charts.divergingBarChart(netPoints)}</div>
+    </div>
+  </div>`;
+}
+
+function needsAttentionEmptyState(data) {
+  if (!data.needsAttention?.hasRecentChanges) {
+    return '<p class="muted" style="font-size:13px;margin:0;">Nothing yet — this fills in once there are at least two syncs to compare, and any current injuries.</p>';
+  }
+  return '<p class="muted" style="font-size:13px;margin:0;">Nothing needs attention right now.</p>';
+}
+
 function playerCardHtml(p) {
   const flags = [];
   if (p.injuryWeeks > 0) flags.push(`<span class="chip critical">● Injured, ~${p.injuryWeeks}w</span>`);
@@ -110,7 +160,9 @@ function wireFilter(data) {
 }
 
 function render(data) {
-  content.innerHTML = renderStatBar(data) + renderCharts(data) + renderSquad(data);
+  content.innerHTML = renderStatBar(data) + renderCharts(data)
+    + `<div class="halfway"></div>` + renderInsightRow(data)
+    + renderSquad(data);
   wireFilter(data);
 }
 

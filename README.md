@@ -5,9 +5,12 @@ the browser football manager game. It reads your squad via Hattrick's CHPP
 API and helps you answer the three questions a manager checks every week:
 
 1. **How is my squad doing, overall?** — Team TSI & Worth over time, age
-   distribution, squad composition by position line.
+   distribution, squad composition by position line, weekly net income, and
+   a persistent "needs attention" panel (injuries, recent level-ups,
+   players whose value estimate just started falling).
 2. **What's happening with this player?** — skills with a training ETA,
-   transfer value trend, TSI history.
+   transfer value trend, TSI history, recent match ratings, and wage shown
+   in context against your team's income.
 3. **What should I do next?** — next-match prep (opponent snapshot, a
    suggested XI, availability) and a weekly digest of what actually changed.
 
@@ -110,12 +113,18 @@ entered in Settings).
 
 ## What's not in v1
 
-Deferred as a roadmap: weekly net income as a standalone chart, a
-persistent "needs attention" panel, contract/wage countdowns (Hattrick's
-contract model needs more research — see the note on `players.contract_expiry`
-in `server/db.js`), a side-by-side player compare, injury/suspension
-history, and email/push notifications for the digest (it's in-app only for
-now, at `/digest.html`).
+- **Hattrick players don't have contracts** (only staff do — players are
+  owned indefinitely until sold, fired, or retired to the Hall of Fame), so
+  there's no "contract expiring" feature here and there never will be one —
+  it was on the original feature backlog but doesn't correspond to a real
+  game mechanic. Wages are shown in context (against your team's weekly
+  income) instead.
+- **Plan training changes ahead of time** stays deferred — it needs CHPP
+  write access, and this app is deliberately read-only in v1 (no lineup or
+  training-order changes).
+- Still deferred as a roadmap: a side-by-side player compare,
+  injury/suspension history, and email/push notifications for the digest
+  (it's in-app only for now, at `/digest.html`).
 
 ## Project layout
 

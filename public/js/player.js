@@ -47,7 +47,11 @@ function sidebarHtml(p) {
       <span class="value mono-stat">~${formatNumber(p.valueRange?.mid)}</span>
       <span class="muted" style="font-size:12px;">range ~${formatNumber(p.valueRange?.low)} – ${formatNumber(p.valueRange?.high)}</span>
     </div>
-    <div class="stat-tile"><span class="caption">Salary / week</span><span class="value mono-stat">${formatNumber(p.salary)}</span></div>
+    <div class="stat-tile">
+      <span class="caption">Salary / week</span>
+      <span class="value mono-stat">${formatNumber(p.salary)}</span>
+      ${p.salaryShareOfWeeklyIncome != null ? `<span class="muted" style="font-size:12px;">~${p.salaryShareOfWeeklyIncome}% of your team's weekly income</span>` : ''}
+    </div>
     <div class="stat-tile"><span class="caption">Form</span><span class="value mono-stat">${p.form ?? '—'}</span></div>
   </div>`;
 }
@@ -59,8 +63,26 @@ function historyChartCard(title, points, color, valueFormat) {
   </div>`;
 }
 
+function shortLabel(dateStr) {
+  return (dateStr || '').slice(0, 10).slice(5) || '?';
+}
+
+function ratingChartCard(ratingHistory) {
+  if (ratingHistory.length < 2) {
+    return `<div class="card chart-card">
+      <div class="card-head"><h3>Recent match ratings</h3></div>
+      <div class="empty-state">Not enough tracked history yet — this fills in as your team plays more matches between syncs.</div>
+    </div>`;
+  }
+  const bars = ratingHistory.map((h) => ({ label: shortLabel(h.date), value: h.rating }));
+  return `<div class="card chart-card">
+    <div class="card-head"><h3>Recent match ratings</h3><span class="muted" style="font-size:12px;">sampled each sync, not every match</span></div>
+    <div class="plot">${Charts.barChart(bars, { color: 'var(--sb-accent)' })}</div>
+  </div>`;
+}
+
 function render(data) {
-  const { player, skills, trainedSkillKey, tsiHistory, valueHistory } = data;
+  const { player, skills, trainedSkillKey, tsiHistory, valueHistory, ratingHistory } = data;
 
   content.innerHTML = `<div class="grid cols-12">
     <div class="span-4">${sidebarHtml(player)}</div>
@@ -73,9 +95,10 @@ function render(data) {
         ${skills.map((s) => skillMeterHtml(s, s.key === trainedSkillKey)).join('')}
       </div>
       <div class="grid cols-2">
-        ${historyChartCard('TSI history', tsiHistory.map((h) => ({ label: h.date.slice(5), value: h.tsi })), 'var(--sb-accent)')}
-        ${historyChartCard('Value history (est.)', valueHistory.map((h) => ({ label: h.date.slice(5), value: h.value })), 'var(--sb-accent-gold)')}
+        ${historyChartCard('TSI history', tsiHistory.map((h) => ({ label: shortLabel(h.date), value: h.tsi })), 'var(--sb-accent)')}
+        ${historyChartCard('Value history (est.)', valueHistory.map((h) => ({ label: shortLabel(h.date), value: h.value })), 'var(--sb-accent-gold)')}
       </div>
+      ${ratingChartCard(ratingHistory)}
     </div>
   </div>`;
 }
