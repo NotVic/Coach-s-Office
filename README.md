@@ -110,6 +110,14 @@ entered in Settings).
   first sync or two. ETAs are derived from snapshots this app has actually
   collected since you connected, not from Hattrick directly (see "On
   estimates" above).
+- **Container has no published port after deploying in Portainer** — almost
+  always means `HOST_PORT` wasn't actually picked up (a typo'd variable
+  name is an easy one — it must be exactly `HOST_PORT`), so Docker fell
+  back to the default of 3000. If 3000 is already taken on your server,
+  the container fails to start rather than publishing on a fallback port.
+  Check the container's logs in Portainer for "port is already allocated"
+  to confirm, fix the variable name/value in the stack's environment
+  variables, and redeploy.
 
 ## What's not in v1
 
