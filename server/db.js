@@ -96,6 +96,47 @@ db.exec(`
   );
 `);
 
+// ---- Migrations ----------------------------------------------------
+//
+// CREATE TABLE IF NOT EXISTS above only matters for a brand-new database —
+// an already-deployed one (this app's whole point is a persistent volume on
+// a home server) keeps whatever schema it had when it was first created.
+// Without this, adding a column to a CREATE TABLE statement here does
+// nothing for existing installs, and a prepared statement referencing the
+// new column crashes the process at require() time, before the server ever
+// starts listening. Add a new { name, up() } entry below for every future
+// schema change instead of editing the CREATE TABLE statements alone.
+
+function hasColumn(table, column) {
+  return db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+}
+
+function ensureColumn(table, column, definition) {
+  if (!hasColumn(table, column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+const MIGRATIONS = [
+  {
+    name: '001_player_match_rating',
+    up() {
+      ensureColumn('players', 'last_match_rating', 'REAL');
+      ensureColumn('players', 'last_match_date', 'TEXT');
+      ensureColumn('player_snapshots', 'last_match_rating', 'REAL');
+      ensureColumn('player_snapshots', 'last_match_date', 'TEXT');
+    },
+  },
+];
+
+db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT)`);
+const appliedMigrations = new Set(db.prepare('SELECT name FROM schema_migrations').all().map((r) => r.name));
+for (const migration of MIGRATIONS) {
+  if (appliedMigrations.has(migration.name)) continue;
+  migration.up();
+  db.prepare('INSERT INTO schema_migrations (name, applied_at) VALUES (?, ?)').run(migration.name, new Date().toISOString());
+}
+
 function getSetting(key, fallback = null) {
   const row = db.prepare('SELECT value FROM kv_settings WHERE key = ?').get(key);
   return row ? row.value : fallback;
