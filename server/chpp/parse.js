@@ -102,12 +102,59 @@ function parsePlayersXml(root) {
       lastMatch: p.LastMatch
         ? { date: p.LastMatch.Date ?? null, rating: num(p.LastMatch.Rating) }
         : null,
+      // Present only on the player who is the club's coach — this is how
+      // CHPP exposes the coach's trainer skill (the coach is a player on
+      // your own roster).
+      trainerData: p.TrainerData
+        ? { type: num(p.TrainerData.TrainerType), skillLevel: num(p.TrainerData.TrainerSkillLevel) }
+        : null,
     };
   });
 
   return {
     team: { teamId: num(team.TeamID), teamName: team.TeamName ?? null },
     players,
+  };
+}
+
+// CHPP TrainingType enum → { label, skillKey }. Ids verified against
+// Hattrick Organizer's core/constants/TrainingType.java (2–12; 0/1 were
+// Hattrick's long-discontinued General/Stamina types). Several are combined
+// trainings (Shooting also trains set pieces, Wing Attacks trains wingers
+// via the whole flank, ...) — skillKey is the PRIMARY skill each one
+// trains, and the label preserves the real training-type name so the UI
+// never pretends a combined training is a single-skill one.
+const TRAINING_TYPES = {
+  2: { label: 'Set Pieces', skillKey: 'skill_setpieces' },
+  3: { label: 'Defending', skillKey: 'skill_defending' },
+  4: { label: 'Scoring', skillKey: 'skill_scoring' },
+  5: { label: 'Crossing (Winger)', skillKey: 'skill_winger' },
+  6: { label: 'Shooting', skillKey: 'skill_scoring' },
+  7: { label: 'Short Passes', skillKey: 'skill_passing' },
+  8: { label: 'Playmaking', skillKey: 'skill_playmaking' },
+  9: { label: 'Goalkeeping', skillKey: 'skill_keeper' },
+  10: { label: 'Through Passes', skillKey: 'skill_passing' },
+  11: { label: 'Defensive Positions', skillKey: 'skill_defending' },
+  12: { label: 'Wing Attacks', skillKey: 'skill_winger' },
+};
+
+/** file=training (v2.2): the club's current training settings. */
+function parseTrainingXml(root) {
+  const team = root.Team ?? {};
+  const trainingTypeId = num(team.TrainingType);
+  const known = trainingTypeId != null ? TRAINING_TYPES[trainingTypeId] : null;
+  return {
+    teamId: num(team.TeamID),
+    trainingTypeId,
+    // Unknown/new type id → nulls, never a guessed skill.
+    trainingTypeLabel: known?.label ?? null,
+    skillKey: known?.skillKey ?? null,
+    intensityPct: num(team.TrainingLevel),
+    staminaPct: num(team.StaminaTrainingPart),
+    trainerId: num(team.Trainer?.TrainerID),
+    trainerName: team.Trainer?.TrainerName ?? null,
+    morale: num(team.Morale),
+    selfConfidence: num(team.SelfConfidence),
   };
 }
 
@@ -173,10 +220,12 @@ function parseMatchesXml(root) {
 
 module.exports = {
   SPECIALTIES,
+  TRAINING_TYPES,
   skillLevelName,
   derivePositionLine,
   parsePlayersXml,
   parseTeamDetailsXml,
   parseEconomyXml,
   parseMatchesXml,
+  parseTrainingXml,
 };

@@ -35,20 +35,11 @@ router.get('/:id', (req, res) => {
     'SELECT * FROM player_snapshots WHERE player_id = ? ORDER BY snapshot_date ASC'
   ).all(playerId);
 
-  const skills = SKILL_KEYS.map((key) => ({
-    key,
-    label: SKILL_LABELS[key],
-    level: player[key],
-    levelName: skillLevelName(player[key]),
-    eta: estimateTrainingEta(snapshots, key),
-  }));
-
-  // Hattrick trains one club-wide skill at a time. CHPP doesn't expose
-  // which one via anything this app currently calls, so this prefers a
-  // manually-reported value (from CSV import's optional "training focus"
-  // fields — see services/importCsv.js) when one exists, and otherwise
-  // falls back to inferring it as whichever skill gained the most over the
-  // tracked window (see services/training.js).
+  // Hattrick trains one club-wide skill at a time. This prefers a known
+  // value — synced from CHPP's file=training, or manually reported through
+  // CSV import (see services/sync.js and services/importCsv.js; both write
+  // the same training_focus_* settings) — and otherwise falls back to
+  // inferring it as whichever skill gained the most over the tracked window.
   const reportedSkillKey = getSetting('training_focus_skill');
   let trainedSkillKey = null;
   let trainingFocus = null;
@@ -57,16 +48,37 @@ router.get('/:id', (req, res) => {
     trainingFocus = {
       skillKey: reportedSkillKey,
       label: SKILL_LABELS[reportedSkillKey],
+      typeLabel: getSetting('training_focus_type_label'),
+      source: getSetting('training_focus_source'),
       intensityPct: numOrNull(getSetting('training_focus_intensity_pct')),
       staminaPct: numOrNull(getSetting('training_focus_stamina_pct')),
       setAt: getSetting('training_focus_set_at'),
+      coachName: getSetting('coach_name'),
+      coachSkillLevel: numOrNull(getSetting('coach_skill_level')),
+      coachSkillName: getSetting('coach_skill_name'),
     };
   } else {
     const gain = (key) => (snapshots.at(-1)?.[key] ?? 0) - (snapshots[0]?.[key] ?? 0);
     trainedSkillKey = snapshots.length >= 2
-      ? skills.reduce((best, s) => (gain(s.key) > gain(best.key) ? s : best), skills[0]).key
+      ? SKILL_KEYS.reduce((best, key) => (gain(key) > gain(best) ? key : best), SKILL_KEYS[0])
       : null;
   }
+
+  const skills = SKILL_KEYS.map((key) => ({
+    key,
+    label: SKILL_LABELS[key],
+    level: player[key],
+    levelName: skillLevelName(player[key]),
+    eta: estimateTrainingEta(snapshots, key, {
+      // Stamina is maintained via the stamina share regardless of the
+      // training focus, so it's never gated as "not trained."
+      isTrained: trainedSkillKey && key !== 'skill_stamina' ? key === trainedSkillKey : null,
+      // Bound the rate window to the focus period only when the focus is
+      // actually known (not inferred) — an inferred focus has no change date.
+      sinceDate: trainingFocus && key === trainedSkillKey ? trainingFocus.setAt : null,
+      ageYears: player.age_years,
+    }),
+  }));
 
   res.json({
     player: {

@@ -1,6 +1,6 @@
-const { db, getSetting, setSetting, withTransaction } = require('../db');
+const { db, getSetting, setSetting, deleteSetting, withTransaction } = require('../db');
 const chpp = require('../chpp/client');
-const { parsePlayersXml, parseTeamDetailsXml, parseEconomyXml } = require('../chpp/parse');
+const { parsePlayersXml, parseTeamDetailsXml, parseEconomyXml, parseTrainingXml, skillLevelName } = require('../chpp/parse');
 const { estimateValue } = require('./valuation');
 const store = require('./store');
 
@@ -12,6 +12,7 @@ const FILE_VERSIONS = {
   teamdetails: '3.4',
   players: '2.5',
   economy: '1.4',
+  training: '2.2',
 };
 
 function today() {
@@ -99,6 +100,45 @@ async function runFullSync({ isInitial = false } = {}) {
   };
 
   const { teamTsi, teamWorth, playerCount } = withTransaction(runInTransaction);
+
+  // The coach is a player on your own roster; TrainerData on that player is
+  // how CHPP exposes their trainer skill. Best-effort context for the
+  // training banner — never required for the sync to succeed.
+  const coach = players.find((p) => p.trainerData);
+  if (coach) {
+    setSetting('coach_name', `${coach.firstName} ${coach.lastName}`.trim());
+    setSetting('coach_skill_level', coach.trainerData.skillLevel);
+    setSetting('coach_skill_name', skillLevelName(coach.trainerData.skillLevel));
+  }
+
+  // Current training settings (file=training). Best-effort like economy —
+  // a scope/version problem here must never fail the whole sync.
+  try {
+    const trainingRaw = await chpp.callChpp({ ...creds, file: 'training', version: FILE_VERSIONS.training });
+    const training = parseTrainingXml(trainingRaw);
+    if (training.skillKey) {
+      // Only move the focus-change date when the trained skill actually
+      // changed — over successive syncs this makes training_focus_set_at a
+      // true "when the focus last changed" date, which is what the
+      // ETA window segmentation in services/training.js needs.
+      if (getSetting('training_focus_skill') !== training.skillKey) {
+        setSetting('training_focus_set_at', new Date().toISOString());
+      }
+      setSetting('training_focus_skill', training.skillKey);
+      setSetting('training_focus_type_label', training.trainingTypeLabel);
+      setSetting('training_focus_intensity_pct', training.intensityPct);
+      setSetting('training_focus_stamina_pct', training.staminaPct);
+      setSetting('training_focus_source', 'chpp');
+    } else if (training.trainingTypeId != null) {
+      // A type id this app doesn't recognize (new Hattrick training type?):
+      // clear rather than keep a stale skill, and log it for diagnosis.
+      ['training_focus_skill', 'training_focus_type_label', 'training_focus_intensity_pct',
+        'training_focus_stamina_pct', 'training_focus_set_at', 'training_focus_source'].forEach(deleteSetting);
+      logSync('training', 'skipped', `Unrecognized TrainingType id ${training.trainingTypeId} — update TRAINING_TYPES in server/chpp/parse.js`);
+    }
+  } catch (err) {
+    logSync('training', 'skipped', err.message);
+  }
 
   // Finances need an extra CHPP permission scope some apps don't have —
   // don't let that fail the whole sync.

@@ -138,8 +138,13 @@ function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) 
       setSetting('training_focus_intensity_pct', trainingFocus.intensityPct);
       setSetting('training_focus_stamina_pct', trainingFocus.staminaPct);
       setSetting('training_focus_set_at', new Date().toISOString());
+      setSetting('training_focus_source', 'csv');
+      // type_label is a CHPP-only concept (combined training names like
+      // "Wing Attacks") — the CSV form asks for a plain skill.
+      deleteSetting('training_focus_type_label');
     } else {
-      ['training_focus_skill', 'training_focus_intensity_pct', 'training_focus_stamina_pct', 'training_focus_set_at']
+      ['training_focus_skill', 'training_focus_intensity_pct', 'training_focus_stamina_pct',
+        'training_focus_set_at', 'training_focus_source', 'training_focus_type_label']
         .forEach(deleteSetting);
     }
 

@@ -23,7 +23,12 @@ progress toward their next skill level. So training ETAs here are modeled
 from *this app's own tracked history* (not Hattrick's internal math), and
 transfer value is a transparent, order-of-magnitude estimate from TSI and
 age. Both always render as a `~` range, never a confident single number —
-see Settings → "About the estimates" in the app itself.
+see Settings → "About the estimates" in the app itself. ETA countdowns are
+shown only for the skill your club is actually training (synced from CHPP's
+`training.xml` when connected, or as reported at CSV import) — untrained
+skills say so instead of showing a countdown, dropping skills are flagged as
+declining, and the range is age-adjusted using the community's Schum age
+factor as a correction on the observed rate.
 
 ## Stack
 

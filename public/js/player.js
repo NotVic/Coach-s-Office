@@ -8,9 +8,17 @@ const METER_SCALE_MAX = 20;
 
 function etaText(eta) {
   if (!eta) return '';
-  if (eta.status === 'no_history') return `<span class="eta">${eta.message}</span>`;
-  if (eta.status === 'stalled') return `<span class="eta">${eta.message}</span>`;
-  return `<span class="eta">~${eta.low}–${eta.high} weeks to next level (est.)</span>`;
+  if (eta.status === 'no_history' || eta.status === 'stalled' || eta.status === 'building_history') {
+    return `<span class="eta">${eta.message}</span>`;
+  }
+  if (eta.status === 'not_trained') {
+    return `<span class="eta">Not currently trained — ${eta.lastGainDate ? `last level-up ${formatDate(eta.lastGainDate)}` : 'no level-up in tracked history'}</span>`;
+  }
+  if (eta.status === 'declining') {
+    // Word + color, never color alone.
+    return `<span class="eta" style="color:var(--sb-status-critical-text);">Declining — dropped from ${eta.from} to ${eta.to} since ${formatDate(eta.sinceDate)}</span>`;
+  }
+  return `<span class="eta">~${eta.low}–${eta.high} weeks to next level (est.${eta.ageAdjusted ? ', age-adjusted' : ''})</span>`;
 }
 
 function skillMeterHtml(skill, isTrained) {
@@ -86,9 +94,19 @@ function trainingFocusBanner(trainingFocus) {
   const parts = [];
   if (trainingFocus.intensityPct != null) parts.push(`${trainingFocus.intensityPct}% intensity`);
   if (trainingFocus.staminaPct != null) parts.push(`${trainingFocus.staminaPct}% to stamina`);
+  if (trainingFocus.coachName) {
+    parts.push(`coach ${trainingFocus.coachName}${trainingFocus.coachSkillName ? ` (${trainingFocus.coachSkillName}${trainingFocus.coachSkillLevel != null ? ` · ${trainingFocus.coachSkillLevel}` : ''})` : ''}`);
+  }
+  // Combined trainings (Shooting, Wing Attacks, ...) train a primary skill
+  // plus others — show the real training-type name, not just the skill.
+  const what = trainingFocus.typeLabel && trainingFocus.typeLabel !== trainingFocus.label
+    ? `<b>${trainingFocus.typeLabel}</b> (primarily <b>${trainingFocus.label}</b>)`
+    : `<b>${trainingFocus.label}</b>`;
+  const provenance = trainingFocus.source === 'chpp'
+    ? `Synced from Hattrick — focus unchanged since ${formatDate(trainingFocus.setAt)}.`
+    : `As you reported on ${formatDate(trainingFocus.setAt)} — this is what you told us at your last import, not something Coach's Office fetched; update it next time your training focus changes in Hattrick.`;
   return `<div class="banner info" style="margin:0 0 10px;font-size:12px;">
-    Training <b>${trainingFocus.label}</b>${parts.length ? ` — ${parts.join(', ')}` : ''}, as you reported on ${formatDate(trainingFocus.setAt)}.
-    This is what you told us at your last import, not something Coach's Office fetched — update it next time your training focus changes in Hattrick.
+    Training ${what}${parts.length ? ` — ${parts.join(', ')}` : ''}. ${provenance}
   </div>`;
 }
 
