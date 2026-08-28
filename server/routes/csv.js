@@ -24,8 +24,13 @@ function numberOrNull(v) {
   return Number.isNaN(n) ? undefined : n; // undefined signals "present but invalid"
 }
 
+const TRAINING_SKILL_KEYS = [
+  'skill_keeper', 'skill_defending', 'skill_playmaking', 'skill_winger',
+  'skill_passing', 'skill_scoring', 'skill_setpieces', 'skill_stamina',
+];
+
 router.post('/import', express.json({ limit: '2mb' }), (req, res) => {
-  const { csv, teamName, cash, weeklyIncome, weeklyExpenses } = req.body || {};
+  const { csv, teamName, cash, weeklyIncome, weeklyExpenses, trainingSkill, trainingIntensity, trainingStaminaPct } = req.body || {};
   if (!csv || !csv.trim()) {
     return res.status(400).json({ error: 'No CSV content received.' });
   }
@@ -36,7 +41,19 @@ router.post('/import', express.json({ limit: '2mb' }), (req, res) => {
     return res.status(400).json({ error: `${badField[0]} must be a number, or left blank.` });
   }
 
-  const result = importSquadCsv(csv, (teamName || '').trim(), finances);
+  let trainingFocus = null;
+  if (trainingSkill) {
+    if (!TRAINING_SKILL_KEYS.includes(trainingSkill)) {
+      return res.status(400).json({ error: `trainingSkill "${trainingSkill}" isn't a recognized skill.` });
+    }
+    const intensityPct = numberOrNull(trainingIntensity);
+    const staminaPct = numberOrNull(trainingStaminaPct);
+    if (intensityPct === undefined) return res.status(400).json({ error: 'Training intensity must be a number, or left blank.' });
+    if (staminaPct === undefined) return res.status(400).json({ error: 'Training stamina % must be a number, or left blank.' });
+    trainingFocus = { skillKey: trainingSkill, intensityPct, staminaPct };
+  }
+
+  const result = importSquadCsv(csv, (teamName || '').trim(), finances, trainingFocus);
   if (!result.ok) {
     return res.status(400).json({ error: 'The CSV has errors — nothing was imported.', rowErrors: result.errors });
   }

@@ -10,7 +10,7 @@
 // once you actually connect, since a real Hattrick team has a different,
 // real team ID.
 const { parseCsv } = require('../lib/csv');
-const { setSetting, withTransaction, db } = require('../db');
+const { setSetting, deleteSetting, withTransaction, db } = require('../db');
 const { estimateValue } = require('./valuation');
 const { detectFormat, csvRecordToPlayerInput, hattrickRecordToPlayerInput, stablePlayerId } = require('./csvSchema');
 const { SPECIALTIES } = require('../chpp/parse');
@@ -37,9 +37,13 @@ function logImport(status, message) {
  *   optional — Hattrick's per-player export has no team-finance columns, so
  *   these come from the Settings form instead if the manager wants the net
  *   income chart to have something to show.
+ * @param {{skillKey: string, intensityPct: number|null, staminaPct: number|null}|null} [trainingFocus]
+ *   optional — what Hattrick's "Set current training" page currently says.
+ *   Manually reported, not fetched, so it's only as fresh as your last
+ *   import; see routes/players.js for how it's surfaced with that caveat.
  * @returns {{ok: true, format, playerCount, teamTsi, teamWorth} | {ok: false, errors: string[]}}
  */
-function importSquadCsv(csvText, teamName, finances = {}) {
+function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) {
   const { headers, records } = parseCsv(csvText);
   if (headers.length === 0 || records.length === 0) {
     return { ok: false, errors: ['The file is empty, or has no data rows below the header row.'] };
@@ -125,6 +129,19 @@ function importSquadCsv(csvText, teamName, finances = {}) {
     setSetting('chpp_team_name', teamName || 'My squad (CSV import)');
     setSetting('data_source', 'csv');
     setSetting('last_sync_at', new Date().toISOString());
+
+    // Same "no partial patch" rule as the rest of the import: leaving this
+    // section blank on a re-import clears whatever was reported before,
+    // rather than silently keeping a now-unconfirmed value around.
+    if (trainingFocus) {
+      setSetting('training_focus_skill', trainingFocus.skillKey);
+      setSetting('training_focus_intensity_pct', trainingFocus.intensityPct);
+      setSetting('training_focus_stamina_pct', trainingFocus.staminaPct);
+      setSetting('training_focus_set_at', new Date().toISOString());
+    } else {
+      ['training_focus_skill', 'training_focus_intensity_pct', 'training_focus_stamina_pct', 'training_focus_set_at']
+        .forEach(deleteSetting);
+    }
 
     return { teamTsi, teamWorth, playerCount: resolved.length };
   };

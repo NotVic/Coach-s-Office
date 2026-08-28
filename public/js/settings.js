@@ -4,6 +4,12 @@ const scheduleCard = document.getElementById('scheduleCard');
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+const TRAINING_SKILLS = [
+  ['skill_keeper', 'Keeper'], ['skill_defending', 'Defending'], ['skill_playmaking', 'Playmaking'],
+  ['skill_winger', 'Winger'], ['skill_passing', 'Passing'], ['skill_scoring', 'Scoring'],
+  ['skill_setpieces', 'Set pieces'], ['skill_stamina', 'Stamina'],
+];
+
 let status = null;
 let pendingAuthorizeUrl = null; // set once /connect has returned, cleared once verified
 
@@ -158,6 +164,22 @@ function renderCsvCard() {
       <div class="field"><label for="csvIncome">Weekly income</label><input type="text" id="csvIncome" inputmode="numeric" placeholder="e.g. 50000"></div>
       <div class="field"><label for="csvExpenses">Weekly expenses</label><input type="text" id="csvExpenses" inputmode="numeric" placeholder="e.g. 42000"></div>
     </details>
+    <details style="margin-bottom:14px;">
+      <summary style="cursor:pointer;font-size:13px;font-weight:600;">Training focus (optional)</summary>
+      <p class="muted" style="font-size:12px;margin:6px 0;">
+        Copy this from Hattrick's own "Set current training" page. It only labels which skill is highlighted as
+        "Training" on a player's page — it doesn't change any ETA math, and it's a snapshot of what you reported
+        at import time, not something Coach's Office keeps in sync on its own. Leave blank to clear it.
+      </p>
+      <div class="field"><label for="csvTrainingSkill">Currently training</label>
+        <select id="csvTrainingSkill">
+          <option value="">— not set —</option>
+          ${TRAINING_SKILLS.map(([key, label]) => `<option value="${key}">${label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label for="csvTrainingIntensity">Training intensity %</label><input type="text" id="csvTrainingIntensity" inputmode="numeric" placeholder="e.g. 96"></div>
+      <div class="field"><label for="csvTrainingStamina">Stamina training %</label><input type="text" id="csvTrainingStamina" inputmode="numeric" placeholder="e.g. 14"></div>
+    </details>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="pill-btn primary" id="importCsvBtn" type="button">Import CSV</button>
       ${status.hasSquadData ? '<a class="pill-btn" href="/api/csv/export">Export current squad</a>' : ''}
@@ -172,6 +194,9 @@ async function importCsv() {
   const cash = document.getElementById('csvCash').value.trim();
   const weeklyIncome = document.getElementById('csvIncome').value.trim();
   const weeklyExpenses = document.getElementById('csvExpenses').value.trim();
+  const trainingSkill = document.getElementById('csvTrainingSkill').value;
+  const trainingIntensity = document.getElementById('csvTrainingIntensity').value.trim();
+  const trainingStaminaPct = document.getElementById('csvTrainingStamina').value.trim();
   const file = fileInput.files[0];
   const btn = document.getElementById('importCsvBtn');
   if (!file) return showError('csvError', 'Choose a CSV file first.');
@@ -180,7 +205,10 @@ async function importCsv() {
   btn.textContent = 'Importing…';
   try {
     const text = await file.text();
-    const result = await apiPost('/api/csv/import', { csv: text, teamName, cash, weeklyIncome, weeklyExpenses });
+    const result = await apiPost('/api/csv/import', {
+      csv: text, teamName, cash, weeklyIncome, weeklyExpenses,
+      trainingSkill, trainingIntensity, trainingStaminaPct,
+    });
     status = await apiGet('/api/chpp/status');
     renderCsvCard();
     const formatNote = result.format === 'hattrick' ? ' (recognized as a Hattrick players export)' : ' (template format)';

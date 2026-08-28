@@ -81,8 +81,19 @@ function ratingChartCard(ratingHistory) {
   </div>`;
 }
 
+function trainingFocusBanner(trainingFocus) {
+  if (!trainingFocus) return '';
+  const parts = [];
+  if (trainingFocus.intensityPct != null) parts.push(`${trainingFocus.intensityPct}% intensity`);
+  if (trainingFocus.staminaPct != null) parts.push(`${trainingFocus.staminaPct}% to stamina`);
+  return `<div class="banner info" style="margin:0 0 10px;font-size:12px;">
+    Training <b>${trainingFocus.label}</b>${parts.length ? ` — ${parts.join(', ')}` : ''}, as you reported on ${formatDate(trainingFocus.setAt)}.
+    This is what you told us at your last import, not something Coach's Office fetched — update it next time your training focus changes in Hattrick.
+  </div>`;
+}
+
 function render(data) {
-  const { player, skills, trainedSkillKey, tsiHistory, valueHistory, ratingHistory } = data;
+  const { player, skills, trainedSkillKey, trainingFocus, tsiHistory, valueHistory, ratingHistory } = data;
 
   content.innerHTML = `<div class="grid cols-12">
     <div class="span-4">${sidebarHtml(player)}</div>
@@ -92,6 +103,7 @@ function render(data) {
         <p class="muted" style="font-size:12px;margin:0 0 4px;">
           ETA is estimated from this app's own tracked history for this player — not Hattrick's internal formula (see Settings for why).
         </p>
+        ${trainingFocusBanner(trainingFocus)}
         ${skills.map((s) => skillMeterHtml(s, s.key === trainedSkillKey)).join('')}
       </div>
       <div class="grid cols-2">

@@ -1,5 +1,5 @@
 const express = require('express');
-const { db } = require('../db');
+const { db, getSetting } = require('../db');
 const { estimateValueRange } = require('../services/valuation');
 const { estimateTrainingEta } = require('../services/training');
 const { skillLevelName } = require('../chpp/parse');
@@ -15,6 +15,12 @@ const SKILL_LABELS = {
   skill_winger: 'Winger', skill_passing: 'Passing', skill_scoring: 'Scoring',
   skill_setpieces: 'Set pieces', skill_stamina: 'Stamina',
 };
+
+function numOrNull(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
 
 router.get('/:id', (req, res) => {
   const playerId = Number(req.params.id);
@@ -37,14 +43,30 @@ router.get('/:id', (req, res) => {
     eta: estimateTrainingEta(snapshots, key),
   }));
 
-  // Hattrick trains one club-wide skill at a time, but CHPP doesn't expose
-  // which one directly — infer it as whichever skill gained the most over
-  // the tracked window (see services/training.js) so the UI can highlight
-  // it in the skill-meter list.
-  const gain = (key) => (snapshots.at(-1)?.[key] ?? 0) - (snapshots[0]?.[key] ?? 0);
-  const trainedSkillKey = snapshots.length >= 2
-    ? skills.reduce((best, s) => (gain(s.key) > gain(best.key) ? s : best), skills[0]).key
-    : null;
+  // Hattrick trains one club-wide skill at a time. CHPP doesn't expose
+  // which one via anything this app currently calls, so this prefers a
+  // manually-reported value (from CSV import's optional "training focus"
+  // fields — see services/importCsv.js) when one exists, and otherwise
+  // falls back to inferring it as whichever skill gained the most over the
+  // tracked window (see services/training.js).
+  const reportedSkillKey = getSetting('training_focus_skill');
+  let trainedSkillKey = null;
+  let trainingFocus = null;
+  if (reportedSkillKey && SKILL_KEYS.includes(reportedSkillKey)) {
+    trainedSkillKey = reportedSkillKey;
+    trainingFocus = {
+      skillKey: reportedSkillKey,
+      label: SKILL_LABELS[reportedSkillKey],
+      intensityPct: numOrNull(getSetting('training_focus_intensity_pct')),
+      staminaPct: numOrNull(getSetting('training_focus_stamina_pct')),
+      setAt: getSetting('training_focus_set_at'),
+    };
+  } else {
+    const gain = (key) => (snapshots.at(-1)?.[key] ?? 0) - (snapshots[0]?.[key] ?? 0);
+    trainedSkillKey = snapshots.length >= 2
+      ? skills.reduce((best, s) => (gain(s.key) > gain(best.key) ? s : best), skills[0]).key
+      : null;
+  }
 
   res.json({
     player: {
@@ -70,6 +92,7 @@ router.get('/:id', (req, res) => {
     },
     skills,
     trainedSkillKey,
+    trainingFocus,
     tsiHistory: snapshots.map((s) => ({ date: s.snapshot_date, tsi: s.tsi })),
     valueHistory: snapshots.map((s) => ({ date: s.snapshot_date, value: s.value_estimate })),
     formHistory: snapshots.map((s) => ({ date: s.snapshot_date, form: s.form })),
