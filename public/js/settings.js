@@ -4,11 +4,9 @@ const scheduleCard = document.getElementById('scheduleCard');
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-const TRAINING_SKILLS = [
-  ['skill_keeper', 'Keeper'], ['skill_defending', 'Defending'], ['skill_playmaking', 'Playmaking'],
-  ['skill_winger', 'Winger'], ['skill_passing', 'Passing'], ['skill_scoring', 'Scoring'],
-  ['skill_setpieces', 'Set pieces'], ['skill_stamina', 'Stamina'],
-];
+// Hattrick's real training types (incl. combined ones), fetched from the
+// server so the list can't drift from the sync/model's own mapping.
+let trainingTypes = [];
 
 let status = null;
 let pendingAuthorizeUrl = null; // set once /connect has returned, cleared once verified
@@ -171,11 +169,12 @@ function renderCsvCard() {
         "Training" on a player's page — it doesn't change any ETA math, and it's a snapshot of what you reported
         at import time, not something Coach's Office keeps in sync on its own. Leave blank to clear it.
       </p>
-      <div class="field"><label for="csvTrainingSkill">Currently training</label>
-        <select id="csvTrainingSkill">
+      <div class="field"><label for="csvTrainingType">Currently training</label>
+        <select id="csvTrainingType">
           <option value="">— not set —</option>
-          ${TRAINING_SKILLS.map(([key, label]) => `<option value="${key}">${label}</option>`).join('')}
+          ${trainingTypes.map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}
         </select>
+        <span class="hint">Pick the exact type from Hattrick's "Set current training" dropdown — combined types (Wing Attacks, Shooting, …) train at different speeds than their pure counterparts.</span>
       </div>
       <div class="field"><label for="csvTrainingIntensity">Training intensity %</label><input type="text" id="csvTrainingIntensity" inputmode="numeric" placeholder="e.g. 96"></div>
       <div class="field"><label for="csvTrainingStamina">Stamina training %</label><input type="text" id="csvTrainingStamina" inputmode="numeric" placeholder="e.g. 14"></div>
@@ -198,7 +197,7 @@ async function importCsv() {
   const cash = document.getElementById('csvCash').value.trim();
   const weeklyIncome = document.getElementById('csvIncome').value.trim();
   const weeklyExpenses = document.getElementById('csvExpenses').value.trim();
-  const trainingSkill = document.getElementById('csvTrainingSkill').value;
+  const trainingTypeId = document.getElementById('csvTrainingType').value;
   const trainingIntensity = document.getElementById('csvTrainingIntensity').value.trim();
   const trainingStaminaPct = document.getElementById('csvTrainingStamina').value.trim();
   const coachLevel = document.getElementById('csvCoachLevel').value.trim();
@@ -213,7 +212,7 @@ async function importCsv() {
     const text = await file.text();
     const result = await apiPost('/api/csv/import', {
       csv: text, teamName, cash, weeklyIncome, weeklyExpenses,
-      trainingSkill, trainingIntensity, trainingStaminaPct, coachLevel, assistantLevels,
+      trainingTypeId, trainingIntensity, trainingStaminaPct, coachLevel, assistantLevels,
     });
     status = await apiGet('/api/chpp/status');
     renderCsvCard();
@@ -297,10 +296,14 @@ async function saveSchedule() {
 
 async function load() {
   try {
-    [status, { schedule }] = await Promise.all([
+    let scheduleRes, typesRes;
+    [status, scheduleRes, typesRes] = await Promise.all([
       apiGet('/api/chpp/status'),
       apiGet('/api/settings/schedule'),
+      apiGet('/api/settings/training-types'),
     ]);
+    schedule = scheduleRes.schedule;
+    trainingTypes = typesRes.types;
     renderConnectCard();
     renderCsvCard();
     renderScheduleCard();

@@ -170,6 +170,11 @@ entered in Settings).
   player-list access for teams other than your own in some cases; the app
   degrades gracefully and skips the win/draw/loss estimate rather than
   fabricate one.
+- **Match Prep without a CHPP connection** — works via manual entry: the
+  page asks for your next opponent, date, venue, and (optionally) their
+  total TSI, all readable from hattrick.org. The suggested XI and
+  availability panel come from your imported squad either way. Entered
+  fixtures expire ~12h after the match date and prompt for the next one.
 - **Training ETA says "not enough history yet"** — that's expected for the
   first sync or two. ETAs are derived from snapshots this app has actually
   collected since you connected, not from Hattrick directly (see "On

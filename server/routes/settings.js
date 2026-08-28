@@ -1,10 +1,20 @@
 const express = require('express');
 const { getSchedule, setSchedule } = require('../services/scheduler');
+const { TRAINING_TYPES } = require('../chpp/parse');
 
 const router = express.Router();
 
 router.get('/schedule', (req, res) => {
   res.json({ schedule: getSchedule() });
+});
+
+// Hattrick's real training types (incl. combined ones like Wing Attacks) —
+// the CSV form's dropdown pulls from here so it can never drift from the
+// TRAINING_TYPES map the sync and the Schum model use.
+router.get('/training-types', (req, res) => {
+  res.json({
+    types: Object.entries(TRAINING_TYPES).map(([id, t]) => ({ id: Number(id), label: t.label, skillKey: t.skillKey })),
+  });
 });
 
 router.post('/schedule', express.json(), (req, res) => {

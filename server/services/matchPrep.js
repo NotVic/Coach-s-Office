@@ -7,7 +7,7 @@
 // real, apples-to-apples number both teams expose: total squad TSI.
 const chpp = require('../chpp/client');
 const { parseTeamDetailsXml, parsePlayersXml, parseMatchesXml } = require('../chpp/parse');
-const { db, getSetting } = require('../db');
+const { db, getSetting, setSetting, deleteSetting } = require('../db');
 const { FILE_VERSIONS } = require('./sync');
 
 function credentials() {
@@ -74,13 +74,101 @@ async function getNextMatch(creds, ownTeamId) {
   return { ...m, opponent, isHome };
 }
 
+function ownSquadContext() {
+  const ownTeamId = Number(getSetting('chpp_team_id'));
+  const latestSnapshot = db.prepare(
+    'SELECT team_tsi FROM team_snapshots ORDER BY snapshot_date DESC LIMIT 1'
+  ).get();
+  const players = ownTeamId
+    ? db.prepare('SELECT * FROM players WHERE team_id = ? AND is_active = 1').all(ownTeamId)
+    : [];
+  return {
+    ownTeamId,
+    ownTsi: latestSnapshot?.team_tsi ?? null,
+    lineup: suggestLineup(players),
+    availability: players.filter((p) => p.injury_weeks > 0).map((p) => ({
+      playerId: p.player_id, name: `${p.first_name} ${p.last_name}`.trim(), injuryWeeks: p.injury_weeks,
+    })),
+    hasSquad: players.length > 0,
+  };
+}
+
+// ---- Manual fixture (no CHPP keys yet) --------------------------------
+// Everything on the match-prep page that CHPP would normally provide about
+// the fixture itself — opponent, date, venue, their total TSI — can be
+// read straight off hattrick.org and typed in. The suggested XI and the
+// availability panel come from your own imported squad either way.
+
+const MANUAL_KEYS = ['manual_next_match_opponent', 'manual_next_match_date', 'manual_next_match_is_home', 'manual_next_match_opponent_tsi', 'manual_next_match_set_at'];
+
+function saveManualFixture({ opponentName, date, isHome, opponentTsi }) {
+  setSetting('manual_next_match_opponent', opponentName);
+  setSetting('manual_next_match_date', date);
+  setSetting('manual_next_match_is_home', isHome ? '1' : '0');
+  setSetting('manual_next_match_opponent_tsi', opponentTsi ?? null);
+  setSetting('manual_next_match_set_at', new Date().toISOString());
+}
+
+function clearManualFixture() {
+  MANUAL_KEYS.forEach(deleteSetting);
+}
+
+function getManualFixture() {
+  const opponentName = getSetting('manual_next_match_opponent');
+  if (!opponentName) return null;
+  const tsiRaw = getSetting('manual_next_match_opponent_tsi');
+  return {
+    opponentName,
+    date: getSetting('manual_next_match_date'),
+    isHome: getSetting('manual_next_match_is_home') === '1',
+    opponentTsi: tsiRaw != null && tsiRaw !== '' ? Number(tsiRaw) : null,
+    setAt: getSetting('manual_next_match_set_at'),
+  };
+}
+
+function buildFromManual() {
+  const squad = ownSquadContext();
+  const fixture = getManualFixture();
+  if (!fixture) {
+    return { hasMatch: false, source: 'manual', connected: false, hasSquad: squad.hasSquad };
+  }
+  // A fixture more than half a day in the past has been played — prompt for
+  // the next one instead of prepping a match that's already over.
+  const expired = fixture.date && (Date.now() - new Date(fixture.date).getTime()) > 12 * 60 * 60 * 1000;
+  if (expired) {
+    return { hasMatch: false, source: 'manual', connected: false, hasSquad: squad.hasSquad, expiredFixture: fixture };
+  }
+
+  return {
+    hasMatch: true,
+    source: 'manual',
+    connected: false,
+    match: { matchId: null, date: fixture.date, isHome: fixture.isHome },
+    opponent: {
+      teamId: null,
+      name: fixture.opponentName,
+      league: null,
+      arena: null,
+      powerRating: null,
+      tsi: fixture.opponentTsi,
+      tsiAvailable: fixture.opponentTsi != null,
+    },
+    ownTsi: squad.ownTsi,
+    outcomeEstimate: estimateMatchOutcome(squad.ownTsi, fixture.opponentTsi),
+    lineup: squad.lineup,
+    availability: squad.availability,
+    fixtureSetAt: fixture.setAt,
+  };
+}
+
 async function buildMatchPrep() {
   const creds = credentials();
-  if (!creds.accessToken) throw new Error('Not connected to CHPP yet.');
+  // No CHPP connection: fall back to the manually-entered fixture.
+  if (!creds.accessToken) return buildFromManual();
   const ownTeamId = Number(getSetting('chpp_team_id'));
 
   const next = await getNextMatch(creds, ownTeamId);
-  if (!next) return { hasMatch: false };
+  if (!next) return { hasMatch: false, source: 'chpp', connected: true };
 
   const [opponentDetailsRaw, opponentPlayersRaw] = await Promise.all([
     chpp.callChpp({ ...creds, file: 'teamdetails', version: FILE_VERSIONS.teamdetails, params: { teamID: next.opponent.id } }),
@@ -92,17 +180,12 @@ async function buildMatchPrep() {
     ? parsePlayersXml(opponentPlayersRaw).players.reduce((sum, p) => sum + (p.tsi || 0), 0)
     : null;
 
-  const latestSnapshot = db.prepare(
-    'SELECT team_tsi FROM team_snapshots ORDER BY snapshot_date DESC LIMIT 1'
-  ).get();
-  const ownTsi = latestSnapshot?.team_tsi ?? null;
-
-  const players = db.prepare('SELECT * FROM players WHERE team_id = ? AND is_active = 1').all(ownTeamId);
-  const lineup = suggestLineup(players);
-  const availability = players.filter((p) => p.injury_weeks > 0);
+  const squad = ownSquadContext();
 
   return {
     hasMatch: true,
+    source: 'chpp',
+    connected: true,
     match: { matchId: next.matchId, date: next.date, isHome: next.isHome },
     opponent: {
       teamId: next.opponent.id,
@@ -113,13 +196,11 @@ async function buildMatchPrep() {
       tsi: opponentTsi,
       tsiAvailable: opponentTsi != null,
     },
-    ownTsi,
-    outcomeEstimate: estimateMatchOutcome(ownTsi, opponentTsi),
-    lineup,
-    availability: availability.map((p) => ({
-      playerId: p.player_id, name: `${p.first_name} ${p.last_name}`.trim(), injuryWeeks: p.injury_weeks,
-    })),
+    ownTsi: squad.ownTsi,
+    outcomeEstimate: estimateMatchOutcome(squad.ownTsi, opponentTsi),
+    lineup: squad.lineup,
+    availability: squad.availability,
   };
 }
 
-module.exports = { buildMatchPrep, estimateMatchOutcome, suggestLineup };
+module.exports = { buildMatchPrep, saveManualFixture, clearManualFixture, estimateMatchOutcome, suggestLineup };

@@ -1,6 +1,7 @@
 const express = require('express');
 const { importSquadCsv } = require('../services/importCsv');
 const { exportSquadCsv, templateCsv } = require('../services/exportCsv');
+const { TRAINING_TYPES } = require('../chpp/parse');
 
 const router = express.Router();
 
@@ -24,13 +25,8 @@ function numberOrNull(v) {
   return Number.isNaN(n) ? undefined : n; // undefined signals "present but invalid"
 }
 
-const TRAINING_SKILL_KEYS = [
-  'skill_keeper', 'skill_defending', 'skill_playmaking', 'skill_winger',
-  'skill_passing', 'skill_scoring', 'skill_setpieces', 'skill_stamina',
-];
-
 router.post('/import', express.json({ limit: '2mb' }), (req, res) => {
-  const { csv, teamName, cash, weeklyIncome, weeklyExpenses, trainingSkill, trainingIntensity, trainingStaminaPct, coachLevel, assistantLevels } = req.body || {};
+  const { csv, teamName, cash, weeklyIncome, weeklyExpenses, trainingTypeId, trainingIntensity, trainingStaminaPct, coachLevel, assistantLevels } = req.body || {};
   if (!csv || !csv.trim()) {
     return res.status(400).json({ error: 'No CSV content received.' });
   }
@@ -42,9 +38,10 @@ router.post('/import', express.json({ limit: '2mb' }), (req, res) => {
   }
 
   let trainingFocus = null;
-  if (trainingSkill) {
-    if (!TRAINING_SKILL_KEYS.includes(trainingSkill)) {
-      return res.status(400).json({ error: `trainingSkill "${trainingSkill}" isn't a recognized skill.` });
+  if (trainingTypeId !== undefined && trainingTypeId !== null && String(trainingTypeId).trim() !== '') {
+    const typeId = numberOrNull(trainingTypeId);
+    if (typeId === undefined || !TRAINING_TYPES[typeId]) {
+      return res.status(400).json({ error: `trainingTypeId "${trainingTypeId}" isn't a recognized Hattrick training type.` });
     }
     const intensityPct = numberOrNull(trainingIntensity);
     const staminaPct = numberOrNull(trainingStaminaPct);
@@ -58,7 +55,7 @@ router.post('/import', express.json({ limit: '2mb' }), (req, res) => {
     if (assistants === undefined || (assistants != null && (assistants < 0 || assistants > 10))) {
       return res.status(400).json({ error: 'Assistant coach levels must be 0–10, or left blank.' });
     }
-    trainingFocus = { skillKey: trainingSkill, intensityPct, staminaPct, coachLevel: coach, assistantLevels: assistants };
+    trainingFocus = { trainingTypeId: typeId, intensityPct, staminaPct, coachLevel: coach, assistantLevels: assistants };
   }
 
   const result = importSquadCsv(csv, (teamName || '').trim(), finances, trainingFocus);

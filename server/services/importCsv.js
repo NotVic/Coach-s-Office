@@ -13,18 +13,9 @@ const { parseCsv } = require('../lib/csv');
 const { setSetting, deleteSetting, withTransaction, db } = require('../db');
 const { estimateValue } = require('./valuation');
 const { detectFormat, csvRecordToPlayerInput, hattrickRecordToPlayerInput, stablePlayerId } = require('./csvSchema');
-const { SPECIALTIES } = require('../chpp/parse');
+const { SPECIALTIES, TRAINING_TYPES } = require('../chpp/parse');
 const { updateSubskills } = require('./subskills');
 const store = require('./store');
-
-// A CSV-reported focus names a plain skill; map it to the matching "pure"
-// CHPP training type so the Schum model (services/schum.js) has a
-// coefficient to work with. Stamina has no trainable type — modeled ETA
-// simply stays unavailable for it.
-const PURE_TRAINING_TYPE_BY_SKILL = {
-  skill_setpieces: 2, skill_defending: 3, skill_scoring: 4, skill_winger: 5,
-  skill_passing: 7, skill_playmaking: 8, skill_keeper: 9,
-};
 
 // Fixed sentinel, chosen well outside any real Hattrick team ID's range
 // (teams have existed since 1997 and are nowhere near this number), so a
@@ -47,8 +38,10 @@ function logImport(status, message) {
  *   optional — Hattrick's per-player export has no team-finance columns, so
  *   these come from the Settings form instead if the manager wants the net
  *   income chart to have something to show.
- * @param {{skillKey: string, intensityPct: number|null, staminaPct: number|null}|null} [trainingFocus]
- *   optional — what Hattrick's "Set current training" page currently says.
+ * @param {{trainingTypeId: number, intensityPct: number|null, staminaPct: number|null,
+ *          coachLevel: number|null, assistantLevels: number|null}|null} [trainingFocus]
+ *   optional — what Hattrick's "Set current training" page currently says,
+ *   as one of the real 11 training types (TRAINING_TYPES in chpp/parse.js).
  *   Manually reported, not fetched, so it's only as fresh as your last
  *   import; see routes/players.js for how it's surfaced with that caveat.
  * @returns {{ok: true, format, playerCount, teamTsi, teamWorth} | {ok: false, errors: string[]}}
@@ -144,15 +137,14 @@ function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) 
     // section blank on a re-import clears whatever was reported before,
     // rather than silently keeping a now-unconfirmed value around.
     if (trainingFocus) {
-      setSetting('training_focus_skill', trainingFocus.skillKey);
+      const type = TRAINING_TYPES[trainingFocus.trainingTypeId];
+      setSetting('training_focus_skill', type.skillKey);
+      setSetting('training_focus_type_id', trainingFocus.trainingTypeId);
+      setSetting('training_focus_type_label', type.label);
       setSetting('training_focus_intensity_pct', trainingFocus.intensityPct);
       setSetting('training_focus_stamina_pct', trainingFocus.staminaPct);
-      setSetting('training_focus_type_id', PURE_TRAINING_TYPE_BY_SKILL[trainingFocus.skillKey] ?? null);
       setSetting('training_focus_set_at', new Date().toISOString());
       setSetting('training_focus_source', 'csv');
-      // type_label is a CHPP-only concept (combined training names like
-      // "Wing Attacks") — the CSV form asks for a plain skill.
-      deleteSetting('training_focus_type_label');
       if (trainingFocus.coachLevel != null) setSetting('coach_skill_level', trainingFocus.coachLevel);
       if (trainingFocus.assistantLevels != null) setSetting('assistant_levels', trainingFocus.assistantLevels);
     } else {
@@ -175,8 +167,8 @@ function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) 
       setpieces: p.skills.setpieces, stamina: p.skills.stamina,
     })),
     trainingFocus ? {
-      skillKey: trainingFocus.skillKey,
-      trainingTypeId: PURE_TRAINING_TYPE_BY_SKILL[trainingFocus.skillKey] ?? null,
+      skillKey: TRAINING_TYPES[trainingFocus.trainingTypeId].skillKey,
+      trainingTypeId: trainingFocus.trainingTypeId,
       intensityPct: trainingFocus.intensityPct,
       staminaPct: trainingFocus.staminaPct,
     } : null,

@@ -38,11 +38,14 @@ function lineupSection(lineup) {
 
 function outcomeSection(data) {
   if (!data.outcomeEstimate) {
+    const reason = data.source === 'manual'
+      ? 'No opponent TSI was entered for this fixture — add it via "Edit fixture" (from their team page in Hattrick) to get one. The app won\'t invent an estimate without it.'
+      : 'Your opponent\'s squad TSI isn\'t viewable via CHPP (their players list access is restricted), so an outcome estimate can\'t be modeled honestly here.';
     return `<div class="card chart-card">
       <div class="card-head"><h3>Predicted outcome</h3></div>
       <div class="empty-state">
         <b>Not available for this fixture</b>
-        Your opponent's squad TSI isn't viewable via CHPP (their players list access is restricted), so an outcome estimate can't be modeled honestly here.
+        ${reason}
       </div>
     </div>`;
   }
@@ -61,15 +64,71 @@ function availabilitySection(list) {
   return `<div class="card"><h3 style="margin-bottom:6px;">Availability</h3>${rows}</div>`;
 }
 
+// Manual fixture entry — the stand-in for CHPP's live fixture data.
+// Everything asked for is readable straight off hattrick.org.
+function fixtureFormHtml(prefill = {}) {
+  return `<div class="card" style="max-width:520px;">
+    <h3 style="margin-bottom:6px;">Enter your next fixture</h3>
+    <p class="muted" style="font-size:12.5px;margin:0 0 12px;">
+      No CHPP connection yet, so tell Coach's Office about the upcoming match yourself — opponent and date are
+      on your fixtures page, and their total squad TSI is on their team page in Hattrick. TSI is optional, but
+      without it there's no win/draw/loss estimate (the app won't invent one).
+    </p>
+    <div id="fixtureError"></div>
+    <div class="field"><label for="fxOpponent">Opponent team name</label><input type="text" id="fxOpponent" value="${prefill.opponentName || ''}"></div>
+    <div class="field"><label for="fxDate">Match date &amp; time</label><input type="datetime-local" id="fxDate" value="${prefill.date || ''}"
+      style="border:1px solid var(--sb-border);border-radius:var(--sb-radius-sm);padding:8px 10px;font-size:13px;background:var(--sb-surface);color:var(--sb-text-primary);"></div>
+    <div class="field"><label for="fxVenue">Venue</label>
+      <select id="fxVenue">
+        <option value="home" ${prefill.isHome !== false ? 'selected' : ''}>Home</option>
+        <option value="away" ${prefill.isHome === false ? 'selected' : ''}>Away</option>
+      </select>
+    </div>
+    <div class="field"><label for="fxTsi">Opponent total TSI (optional)</label><input type="text" id="fxTsi" inputmode="numeric" value="${prefill.opponentTsi || ''}" placeholder="from their team page">
+      <span class="hint">Leave blank if you'd rather skip the outcome estimate.</span></div>
+    <button class="pill-btn primary" id="saveFixtureBtn" type="button">Save fixture</button>
+  </div>`;
+}
+
+function wireFixtureForm() {
+  document.getElementById('saveFixtureBtn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('saveFixtureBtn');
+    btn.disabled = true;
+    try {
+      await apiPost('/api/match-prep/manual', {
+        opponentName: document.getElementById('fxOpponent').value.trim(),
+        date: document.getElementById('fxDate').value,
+        isHome: document.getElementById('fxVenue').value === 'home',
+        opponentTsi: document.getElementById('fxTsi').value.trim(),
+      });
+      await load();
+    } catch (err) {
+      document.getElementById('fixtureError').innerHTML = `<div class="banner error">${err.message}</div>`;
+      btn.disabled = false;
+    }
+  });
+}
+
 function render(data) {
   if (!data.hasMatch) {
+    if (data.connected === false) {
+      // CSV-sourced squad: offer manual fixture entry instead of a dead end.
+      const expiredNote = data.expiredFixture
+        ? `<div class="banner info" style="max-width:520px;">Your last entered fixture (vs ${data.expiredFixture.opponentName}, ${formatDate(data.expiredFixture.date)}) has been played — enter the next one.</div>`
+        : '';
+      content.innerHTML = expiredNote + fixtureFormHtml(data.expiredFixture ? { isHome: data.expiredFixture.isHome } : {});
+      wireFixtureForm();
+      pageSub.textContent = data.hasSquad ? 'Enter your next fixture to prep it' : 'Import your squad first (Settings), then enter a fixture';
+      return;
+    }
     content.innerHTML = `<div class="empty-state"><b>No upcoming fixture found</b>Check back closer to your next match, or sync from the Dashboard.</div>`;
     pageSub.textContent = 'No fixture scheduled';
     return;
   }
 
   const { match, opponent, ownTsi } = data;
-  pageSub.textContent = `vs ${opponent.name || 'TBD'}${opponent.league?.name ? ' · ' + opponent.league.name : ''} · ${formatDate(match.date)} · ${match.isHome ? 'Home' : 'Away'}`;
+  pageSub.textContent = `vs ${opponent.name || 'TBD'}${opponent.league?.name ? ' · ' + opponent.league.name : ''} · ${formatDate(match.date)} · ${match.isHome ? 'Home' : 'Away'}`
+    + (data.source === 'manual' ? ' · manually entered' : '');
 
   const tsiDiff = opponent.tsiAvailable ? ownTsi - opponent.tsi : null;
 
@@ -105,14 +164,39 @@ function render(data) {
     </div>
     <div class="span-4" style="display:flex;flex-direction:column;gap:16px;">
       ${availabilitySection(data.availability)}
+      ${data.source === 'manual' ? `
+      <div class="card">
+        <h3 style="margin-bottom:6px;">Manually entered fixture</h3>
+        <p class="muted" style="font-size:12px;margin:0 0 10px;">
+          Entered ${formatDate(data.fixtureSetAt)} — not live data. Opponent TSI is whatever you copied from
+          their page at that time.
+        </p>
+        <div style="display:flex;gap:8px;">
+          <button class="pill-btn" id="editFixtureBtn" type="button">Edit fixture</button>
+          <button class="pill-btn" id="clearFixtureBtn" type="button">Clear</button>
+        </div>
+      </div>` : `
       <div class="card">
         <h3 style="margin-bottom:6px;">Opponent snapshot</h3>
         <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 6px;">League: ${opponent.league?.name || '—'}</p>
         <p style="font-size:13px;color:var(--sb-text-secondary);margin:0;">Power rating: ${opponent.powerRating ?? '—'}</p>
         <p class="muted" style="font-size:11.5px;margin-top:8px;">Detailed opponent skills aren't available via CHPP unless you've scouted them in-game.</p>
-      </div>
+      </div>`}
     </div>
   </div>`;
+
+  if (data.source === 'manual') {
+    document.getElementById('editFixtureBtn').addEventListener('click', () => {
+      // Re-open the form prefilled with the current fixture.
+      const localDate = match.date ? match.date.slice(0, 16) : '';
+      content.innerHTML = fixtureFormHtml({ opponentName: opponent.name, date: localDate, isHome: match.isHome, opponentTsi: opponent.tsi ?? '' });
+      wireFixtureForm();
+    });
+    document.getElementById('clearFixtureBtn').addEventListener('click', async () => {
+      await apiPost('/api/match-prep/manual', { clear: true });
+      await load();
+    });
+  }
 }
 
 async function load() {
