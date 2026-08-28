@@ -30,7 +30,7 @@ const TRAINING_SKILL_KEYS = [
 ];
 
 router.post('/import', express.json({ limit: '2mb' }), (req, res) => {
-  const { csv, teamName, cash, weeklyIncome, weeklyExpenses, trainingSkill, trainingIntensity, trainingStaminaPct } = req.body || {};
+  const { csv, teamName, cash, weeklyIncome, weeklyExpenses, trainingSkill, trainingIntensity, trainingStaminaPct, coachLevel, assistantLevels } = req.body || {};
   if (!csv || !csv.trim()) {
     return res.status(400).json({ error: 'No CSV content received.' });
   }
@@ -48,9 +48,17 @@ router.post('/import', express.json({ limit: '2mb' }), (req, res) => {
     }
     const intensityPct = numberOrNull(trainingIntensity);
     const staminaPct = numberOrNull(trainingStaminaPct);
+    const coach = numberOrNull(coachLevel);
+    const assistants = numberOrNull(assistantLevels);
     if (intensityPct === undefined) return res.status(400).json({ error: 'Training intensity must be a number, or left blank.' });
     if (staminaPct === undefined) return res.status(400).json({ error: 'Training stamina % must be a number, or left blank.' });
-    trainingFocus = { skillKey: trainingSkill, intensityPct, staminaPct };
+    if (coach === undefined || (coach != null && (coach < 4 || coach > 8))) {
+      return res.status(400).json({ error: 'Coach skill level must be 4–8, or left blank.' });
+    }
+    if (assistants === undefined || (assistants != null && (assistants < 0 || assistants > 10))) {
+      return res.status(400).json({ error: 'Assistant coach levels must be 0–10, or left blank.' });
+    }
+    trainingFocus = { skillKey: trainingSkill, intensityPct, staminaPct, coachLevel: coach, assistantLevels: assistants };
   }
 
   const result = importSquadCsv(csv, (teamName || '').trim(), finances, trainingFocus);

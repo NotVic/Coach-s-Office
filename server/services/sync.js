@@ -1,7 +1,8 @@
 const { db, getSetting, setSetting, deleteSetting, withTransaction } = require('../db');
 const chpp = require('../chpp/client');
-const { parsePlayersXml, parseTeamDetailsXml, parseEconomyXml, parseTrainingXml, skillLevelName } = require('../chpp/parse');
+const { parsePlayersXml, parseTeamDetailsXml, parseEconomyXml, parseTrainingXml, parseStaffListXml, skillLevelName } = require('../chpp/parse');
 const { estimateValue } = require('./valuation');
+const { updateSubskills } = require('./subskills');
 const store = require('./store');
 
 // CHPP file versions. These have historically stayed stable for years at a
@@ -13,6 +14,7 @@ const FILE_VERSIONS = {
   players: '2.5',
   economy: '1.4',
   training: '2.2',
+  stafflist: '1.2',
 };
 
 function today() {
@@ -31,6 +33,14 @@ function credentials() {
 function logSync(kind, status, message) {
   db.prepare('INSERT INTO sync_log (ran_at, kind, status, message) VALUES (?, ?, ?, ?)')
     .run(new Date().toISOString(), kind, status, message ?? null);
+}
+
+/** kv_settings value as a number, preserving legitimate zeros (null only when absent/invalid). */
+function settingNum(key) {
+  const v = getSetting(key);
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
 }
 
 /**
@@ -125,6 +135,7 @@ async function runFullSync({ isInitial = false } = {}) {
         setSetting('training_focus_set_at', new Date().toISOString());
       }
       setSetting('training_focus_skill', training.skillKey);
+      setSetting('training_focus_type_id', training.trainingTypeId);
       setSetting('training_focus_type_label', training.trainingTypeLabel);
       setSetting('training_focus_intensity_pct', training.intensityPct);
       setSetting('training_focus_stamina_pct', training.staminaPct);
@@ -132,12 +143,22 @@ async function runFullSync({ isInitial = false } = {}) {
     } else if (training.trainingTypeId != null) {
       // A type id this app doesn't recognize (new Hattrick training type?):
       // clear rather than keep a stale skill, and log it for diagnosis.
-      ['training_focus_skill', 'training_focus_type_label', 'training_focus_intensity_pct',
+      ['training_focus_skill', 'training_focus_type_id', 'training_focus_type_label', 'training_focus_intensity_pct',
         'training_focus_stamina_pct', 'training_focus_set_at', 'training_focus_source'].forEach(deleteSetting);
       logSync('training', 'skipped', `Unrecognized TrainingType id ${training.trainingTypeId} — update TRAINING_TYPES in server/chpp/parse.js`);
     }
   } catch (err) {
     logSync('training', 'skipped', err.message);
+  }
+
+  // Assistant coach levels (file=stafflist) — a Schum-formula input.
+  // Best-effort like training/economy.
+  try {
+    const staffRaw = await chpp.callChpp({ ...creds, file: 'stafflist', version: FILE_VERSIONS.stafflist });
+    const staff = parseStaffListXml(staffRaw);
+    setSetting('assistant_levels', staff.assistantLevels);
+  } catch (err) {
+    logSync('stafflist', 'skipped', err.message);
   }
 
   // Finances need an extra CHPP permission scope some apps don't have —
@@ -158,6 +179,32 @@ async function runFullSync({ isInitial = false } = {}) {
   store.upsertTeamSnapshot({
     date, teamId, teamTsi, teamWorth, cash, weeklyIncome, weeklyExpenses,
   });
+
+  // Schum-formula sub-skill bookkeeping (services/subskills.js) — runs
+  // after the training/staff fetches so it uses this sync's fresh inputs.
+  try {
+    const focusSkill = getSetting('training_focus_skill');
+    updateSubskills(
+      players.map((p) => ({
+        playerId: p.playerId, ageYears: p.ageYears,
+        keeper: p.skills.keeper, defending: p.skills.defending, playmaking: p.skills.playmaking,
+        winger: p.skills.winger, passing: p.skills.passing, scoring: p.skills.scoring,
+        setpieces: p.skills.setpieces, stamina: p.skills.stamina,
+      })),
+      focusSkill ? {
+        skillKey: focusSkill,
+        trainingTypeId: settingNum('training_focus_type_id'),
+        intensityPct: settingNum('training_focus_intensity_pct'),
+        staminaPct: settingNum('training_focus_stamina_pct'),
+      } : null,
+      {
+        coachLevel: settingNum('coach_skill_level'),
+        assistantLevels: settingNum('assistant_levels'),
+      }
+    );
+  } catch (err) {
+    logSync('subskills', 'skipped', err.message);
+  }
 
   setSetting('last_sync_at', new Date().toISOString());
   logSync(isInitial ? 'initial' : 'scheduled', 'ok', `${playerCount} players, team TSI ${teamTsi}`);

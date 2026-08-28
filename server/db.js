@@ -94,6 +94,20 @@ db.exec(`
     status   TEXT NOT NULL,
     message  TEXT
   );
+
+  -- Modeled fractional progress toward the next skill level (Schum-formula
+  -- bookkeeping, services/subskills.js). sub_value is in [-0.99, 0.99]:
+  -- positive = banked progress toward the next level, negative = modeled
+  -- decay toward the level below. anchored_level is the integer level the
+  -- fraction is relative to; a confirmed level change resets the fraction.
+  CREATE TABLE IF NOT EXISTS player_subskills (
+    player_id      INTEGER NOT NULL,
+    skill_key      TEXT NOT NULL,
+    sub_value      REAL NOT NULL DEFAULT 0,
+    anchored_level INTEGER,
+    updated_at     TEXT,
+    PRIMARY KEY (player_id, skill_key)
+  );
 `);
 
 // ---- Migrations ----------------------------------------------------

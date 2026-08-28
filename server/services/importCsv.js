@@ -14,7 +14,17 @@ const { setSetting, deleteSetting, withTransaction, db } = require('../db');
 const { estimateValue } = require('./valuation');
 const { detectFormat, csvRecordToPlayerInput, hattrickRecordToPlayerInput, stablePlayerId } = require('./csvSchema');
 const { SPECIALTIES } = require('../chpp/parse');
+const { updateSubskills } = require('./subskills');
 const store = require('./store');
+
+// A CSV-reported focus names a plain skill; map it to the matching "pure"
+// CHPP training type so the Schum model (services/schum.js) has a
+// coefficient to work with. Stamina has no trainable type — modeled ETA
+// simply stays unavailable for it.
+const PURE_TRAINING_TYPE_BY_SKILL = {
+  skill_setpieces: 2, skill_defending: 3, skill_scoring: 4, skill_winger: 5,
+  skill_passing: 7, skill_playmaking: 8, skill_keeper: 9,
+};
 
 // Fixed sentinel, chosen well outside any real Hattrick team ID's range
 // (teams have existed since 1997 and are nowhere near this number), so a
@@ -137,14 +147,17 @@ function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) 
       setSetting('training_focus_skill', trainingFocus.skillKey);
       setSetting('training_focus_intensity_pct', trainingFocus.intensityPct);
       setSetting('training_focus_stamina_pct', trainingFocus.staminaPct);
+      setSetting('training_focus_type_id', PURE_TRAINING_TYPE_BY_SKILL[trainingFocus.skillKey] ?? null);
       setSetting('training_focus_set_at', new Date().toISOString());
       setSetting('training_focus_source', 'csv');
       // type_label is a CHPP-only concept (combined training names like
       // "Wing Attacks") — the CSV form asks for a plain skill.
       deleteSetting('training_focus_type_label');
+      if (trainingFocus.coachLevel != null) setSetting('coach_skill_level', trainingFocus.coachLevel);
+      if (trainingFocus.assistantLevels != null) setSetting('assistant_levels', trainingFocus.assistantLevels);
     } else {
       ['training_focus_skill', 'training_focus_intensity_pct', 'training_focus_stamina_pct',
-        'training_focus_set_at', 'training_focus_source', 'training_focus_type_label']
+        'training_focus_set_at', 'training_focus_source', 'training_focus_type_label', 'training_focus_type_id']
         .forEach(deleteSetting);
     }
 
@@ -152,6 +165,24 @@ function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) 
   };
 
   const result = withTransaction(runInTransaction);
+
+  // Schum-formula sub-skill bookkeeping (services/subskills.js).
+  updateSubskills(
+    resolved.map((p) => ({
+      playerId: p.resolvedId, ageYears: p.ageYears,
+      keeper: p.skills.keeper, defending: p.skills.defending, playmaking: p.skills.playmaking,
+      winger: p.skills.winger, passing: p.skills.passing, scoring: p.skills.scoring,
+      setpieces: p.skills.setpieces, stamina: p.skills.stamina,
+    })),
+    trainingFocus ? {
+      skillKey: trainingFocus.skillKey,
+      trainingTypeId: PURE_TRAINING_TYPE_BY_SKILL[trainingFocus.skillKey] ?? null,
+      intensityPct: trainingFocus.intensityPct,
+      staminaPct: trainingFocus.staminaPct,
+    } : null,
+    { coachLevel: trainingFocus?.coachLevel ?? null, assistantLevels: trainingFocus?.assistantLevels ?? null }
+  );
+
   logImport('ok', `${format} format, ${result.playerCount} players, team TSI ${result.teamTsi}`);
   return { ok: true, format, ...result };
 }

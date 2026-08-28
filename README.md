@@ -30,6 +30,20 @@ skills say so instead of showing a countdown, dropping skills are flagged as
 declining, and the range is age-adjusted using the community's Schum age
 factor as a correction on the observed rate.
 
+The trained skill additionally shows a second, independent **modeled**
+estimate: the community-reverse-engineered Schum training formula (constants
+from Hattrick Organizer's open-source implementation, re-implemented here),
+fed by training type, intensity, stamina share, coach skill, and assistant
+coach levels (synced via CHPP's `stafflist` when connected, or entered at
+CSV import). Between syncs the app keeps decimal sub-skill bookkeeping —
+modeled fractional progress toward the next level, recalibrated to zero
+whenever CHPP confirms a real level change — and untrained skills past
+their age threshold show the modeled natural decay rate. When the observed
+and modeled estimates disagree, that's a signal in itself (training slower
+than the formula expects → check intensity, coach, or minutes played).
+Unknown inputs are assumed conservatively and every assumption is listed on
+the estimate.
+
 ## Stack
 
 Node.js + Express, vanilla JS/HTML/CSS on the frontend (no build step),

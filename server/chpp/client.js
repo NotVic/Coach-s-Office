@@ -22,7 +22,7 @@ const xmlParser = new XMLParser({
   // elements (a squad with one player, a fixture list with one match) would
   // otherwise silently collapse to a single object. Force these to always
   // be arrays so downstream parsing code doesn't special-case count === 1.
-  isArray: (tagName) => ['Player', 'Match', 'Trophy'].includes(tagName),
+  isArray: (tagName) => ['Player', 'Match', 'Trophy', 'Staff', 'StaffMember'].includes(tagName),
 });
 
 function makeOAuth(consumerKey, consumerSecret) {

@@ -158,6 +158,22 @@ function parseTrainingXml(root) {
   };
 }
 
+/**
+ * file=stafflist (v1.2): club staff. Returns the summed level of assistant
+ * coaches (StaffType 1 per HO's StaffType enum) — the "0–10" input Schum's
+ * formula wants (two assistants × max level 5). Tolerant about the exact
+ * container nesting since this file can't be live-verified until a CHPP
+ * connection exists.
+ */
+function parseStaffListXml(root) {
+  const list = root.StaffList ?? root.Team?.StaffList ?? {};
+  const members = asArray(list.Staff ?? list.StaffMember);
+  const assistantLevels = members
+    .filter((m) => num(m.StaffType) === 1)
+    .reduce((sum, m) => sum + (num(m.StaffLevel, 0) ?? 0), 0);
+  return { assistantLevels, staffCount: members.length };
+}
+
 function parseTeamDetailsXml(root) {
   const team = root.Team ?? {};
   return {
@@ -228,4 +244,5 @@ module.exports = {
   parseEconomyXml,
   parseMatchesXml,
   parseTrainingXml,
+  parseStaffListXml,
 };

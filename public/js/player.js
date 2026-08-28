@@ -21,6 +21,23 @@ function etaText(eta) {
   return `<span class="eta">~${eta.low}–${eta.high} weeks to next level (est.${eta.ageAdjusted ? ', age-adjusted' : ''})</span>`;
 }
 
+function modeledText(skill) {
+  const m = skill.modeled;
+  if (m) {
+    const assumptions = (m.assumptions || []).join('; ');
+    if (m.status === 'decay_exceeds_gain') {
+      return `<span class="eta" title="${assumptions}">Modeled (community formula): age-related decay currently outpaces the training gain — a level-up is unlikely at this age/level.</span>`;
+    }
+    return `<span class="eta" title="${assumptions}">Modeled (community formula): ~${m.low}–${m.high} weeks to next level` +
+      `${m.progressPct > 0 ? ` · ~${m.progressPct}% already banked` : ''}` +
+      `${assumptions ? ' · assumptions apply (hover)' : ''}</span>`;
+  }
+  if (skill.modeledWeeklyDrop) {
+    return `<span class="eta">Modeled natural decay at this age: ~${skill.modeledWeeklyDrop} levels/week</span>`;
+  }
+  return '';
+}
+
 function skillMeterHtml(skill, isTrained) {
   const pct = Math.min(100, ((skill.level ?? 0) / METER_SCALE_MAX) * 100);
   return `<div class="skill-meter${isTrained ? ' trained' : ''}">
@@ -30,6 +47,7 @@ function skillMeterHtml(skill, isTrained) {
     </div>
     <div class="meter-track"><div class="meter-fill" style="width:${pct}%"></div></div>
     ${etaText(skill.eta)}
+    ${modeledText(skill)}
   </div>`;
 }
 
@@ -96,7 +114,10 @@ function trainingFocusBanner(trainingFocus) {
   if (trainingFocus.staminaPct != null) parts.push(`${trainingFocus.staminaPct}% to stamina`);
   if (trainingFocus.coachName) {
     parts.push(`coach ${trainingFocus.coachName}${trainingFocus.coachSkillName ? ` (${trainingFocus.coachSkillName}${trainingFocus.coachSkillLevel != null ? ` · ${trainingFocus.coachSkillLevel}` : ''})` : ''}`);
+  } else if (trainingFocus.coachSkillLevel != null) {
+    parts.push(`coach skill ${trainingFocus.coachSkillLevel}`);
   }
+  if (trainingFocus.assistantLevels != null) parts.push(`assistant levels ${trainingFocus.assistantLevels}`);
   // Combined trainings (Shooting, Wing Attacks, ...) train a primary skill
   // plus others — show the real training-type name, not just the skill.
   const what = trainingFocus.typeLabel && trainingFocus.typeLabel !== trainingFocus.label

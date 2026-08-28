@@ -179,6 +179,10 @@ function renderCsvCard() {
       </div>
       <div class="field"><label for="csvTrainingIntensity">Training intensity %</label><input type="text" id="csvTrainingIntensity" inputmode="numeric" placeholder="e.g. 96"></div>
       <div class="field"><label for="csvTrainingStamina">Stamina training %</label><input type="text" id="csvTrainingStamina" inputmode="numeric" placeholder="e.g. 14"></div>
+      <div class="field"><label for="csvCoachLevel">Coach skill level (4–8)</label><input type="text" id="csvCoachLevel" inputmode="numeric" placeholder="e.g. 7 for Solid">
+        <span class="hint">From Club → Staff. Feeds the modeled training estimate; blank assumes Solid (7).</span></div>
+      <div class="field"><label for="csvAssistants">Assistant coach levels, summed (0–10)</label><input type="text" id="csvAssistants" inputmode="numeric" placeholder="e.g. 8 for two level-4 assistants">
+        <span class="hint">Add up your assistant coaches' levels. Blank assumes none.</span></div>
     </details>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="pill-btn primary" id="importCsvBtn" type="button">Import CSV</button>
@@ -197,6 +201,8 @@ async function importCsv() {
   const trainingSkill = document.getElementById('csvTrainingSkill').value;
   const trainingIntensity = document.getElementById('csvTrainingIntensity').value.trim();
   const trainingStaminaPct = document.getElementById('csvTrainingStamina').value.trim();
+  const coachLevel = document.getElementById('csvCoachLevel').value.trim();
+  const assistantLevels = document.getElementById('csvAssistants').value.trim();
   const file = fileInput.files[0];
   const btn = document.getElementById('importCsvBtn');
   if (!file) return showError('csvError', 'Choose a CSV file first.');
@@ -207,7 +213,7 @@ async function importCsv() {
     const text = await file.text();
     const result = await apiPost('/api/csv/import', {
       csv: text, teamName, cash, weeklyIncome, weeklyExpenses,
-      trainingSkill, trainingIntensity, trainingStaminaPct,
+      trainingSkill, trainingIntensity, trainingStaminaPct, coachLevel, assistantLevels,
     });
     status = await apiGet('/api/chpp/status');
     renderCsvCard();

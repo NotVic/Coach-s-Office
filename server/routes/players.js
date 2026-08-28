@@ -2,6 +2,8 @@ const express = require('express');
 const { db, getSetting } = require('../db');
 const { estimateValueRange } = require('../services/valuation');
 const { estimateTrainingEta } = require('../services/training');
+const { modeledEta, weeklyDrop } = require('../services/schum');
+const { getSubskill } = require('../services/subskills');
 const { skillLevelName } = require('../chpp/parse');
 
 const router = express.Router();
@@ -56,6 +58,7 @@ router.get('/:id', (req, res) => {
       coachName: getSetting('coach_name'),
       coachSkillLevel: numOrNull(getSetting('coach_skill_level')),
       coachSkillName: getSetting('coach_skill_name'),
+      assistantLevels: numOrNull(getSetting('assistant_levels')),
     };
   } else {
     const gain = (key) => (snapshots.at(-1)?.[key] ?? 0) - (snapshots[0]?.[key] ?? 0);
@@ -64,21 +67,56 @@ router.get('/:id', (req, res) => {
       : null;
   }
 
-  const skills = SKILL_KEYS.map((key) => ({
-    key,
-    label: SKILL_LABELS[key],
-    level: player[key],
-    levelName: skillLevelName(player[key]),
-    eta: estimateTrainingEta(snapshots, key, {
-      // Stamina is maintained via the stamina share regardless of the
-      // training focus, so it's never gated as "not trained."
-      isTrained: trainedSkillKey && key !== 'skill_stamina' ? key === trainedSkillKey : null,
-      // Bound the rate window to the focus period only when the focus is
-      // actually known (not inferred) — an inferred focus has no change date.
-      sinceDate: trainingFocus && key === trainedSkillKey ? trainingFocus.setAt : null,
-      ageYears: player.age_years,
-    }),
-  }));
+  const trainingTypeId = numOrNull(getSetting('training_focus_type_id'));
+  const assistantLevels = numOrNull(getSetting('assistant_levels'));
+
+  const skills = SKILL_KEYS.map((key) => {
+    const isTrainedForEta = trainedSkillKey && key !== 'skill_stamina' ? key === trainedSkillKey : null;
+    const skill = {
+      key,
+      label: SKILL_LABELS[key],
+      level: player[key],
+      levelName: skillLevelName(player[key]),
+      eta: estimateTrainingEta(snapshots, key, {
+        // Stamina is maintained via the stamina share regardless of the
+        // training focus, so it's never gated as "not trained."
+        isTrained: isTrainedForEta,
+        // Bound the rate window to the focus period only when the focus is
+        // actually known (not inferred) — an inferred focus has no change date.
+        sinceDate: trainingFocus && key === trainedSkillKey ? trainingFocus.setAt : null,
+        ageYears: player.age_years,
+      }),
+    };
+
+    // Second, independent estimate for the trained skill: Schum's community
+    // formula + the sub-skill bookkeeping. Shown ALONGSIDE the observed one
+    // — a mismatch between the two is itself a useful signal (training
+    // slower than the formula expects → check intensity/coach/minutes).
+    if (trainingFocus && key === trainedSkillKey) {
+      const sub = getSubskill(playerId, key);
+      const subProgress = sub && sub.anchored_level === player[key] ? Math.max(0, sub.sub_value) : 0;
+      const modeled = modeledEta({
+        skillLevel: player[key],
+        subProgress,
+        trainingTypeId,
+        ageYears: player.age_years,
+        intensityPct: trainingFocus.intensityPct,
+        staminaPct: trainingFocus.staminaPct,
+        coachLevel: trainingFocus.coachSkillLevel,
+        assistantLevels,
+        skillKey: key,
+      });
+      if (modeled) {
+        skill.modeled = { ...modeled, progressPct: Math.round(subProgress * 100) };
+      }
+    } else if (isTrainedForEta === false && player[key] != null && player.age_years != null) {
+      // Aging untrained skills: surface the modeled natural decay rate.
+      const drop = weeklyDrop({ skillLevel: player[key], ageYears: player.age_years, skillKey: key, isTrained: false });
+      if (drop > 0) skill.modeledWeeklyDrop = Math.round(drop * 1000) / 1000;
+    }
+
+    return skill;
+  });
 
   res.json({
     player: {
