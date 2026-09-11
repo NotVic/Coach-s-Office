@@ -112,12 +112,17 @@ function trainingFocusBanner(trainingFocus) {
   const parts = [];
   if (trainingFocus.intensityPct != null) parts.push(`${trainingFocus.intensityPct}% intensity`);
   if (trainingFocus.staminaPct != null) parts.push(`${trainingFocus.staminaPct}% to stamina`);
+  // Coach skill is stored on the global 4–8 scale; Hattrick's own club
+  // page shows it out of 5 — display both so it matches what the manager
+  // sees in the game.
+  const coach5 = trainingFocus.coachSkillLevel != null && trainingFocus.coachSkillLevel >= 4 && trainingFocus.coachSkillLevel <= 8
+    ? `${trainingFocus.coachSkillLevel - 3}/5` : null;
   if (trainingFocus.coachName) {
-    parts.push(`coach ${trainingFocus.coachName}${trainingFocus.coachSkillName ? ` (${trainingFocus.coachSkillName}${trainingFocus.coachSkillLevel != null ? ` · ${trainingFocus.coachSkillLevel}` : ''})` : ''}`);
+    parts.push(`coach ${trainingFocus.coachName}${trainingFocus.coachSkillName ? ` (${trainingFocus.coachSkillName}${coach5 ? ` · ${coach5}` : ''})` : ''}`);
   } else if (trainingFocus.coachSkillLevel != null) {
-    parts.push(`coach skill ${trainingFocus.coachSkillLevel}`);
+    parts.push(`coach ${coach5 ?? trainingFocus.coachSkillLevel}${trainingFocus.coachSkillName ? ` (${trainingFocus.coachSkillName})` : ''}`);
   }
-  if (trainingFocus.assistantLevels != null) parts.push(`assistant levels ${trainingFocus.assistantLevels}`);
+  if (trainingFocus.assistantLevels != null) parts.push(`assistant coach levels ${trainingFocus.assistantLevels}/10`);
   // Combined trainings (Shooting, Wing Attacks, ...) train a primary skill
   // plus others — show the real training-type name, not just the skill.
   const what = trainingFocus.typeLabel && trainingFocus.typeLabel !== trainingFocus.label

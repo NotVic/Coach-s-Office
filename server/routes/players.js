@@ -57,7 +57,8 @@ router.get('/:id', (req, res) => {
       setAt: getSetting('training_focus_set_at'),
       coachName: getSetting('coach_name'),
       coachSkillLevel: numOrNull(getSetting('coach_skill_level')),
-      coachSkillName: getSetting('coach_skill_name'),
+      coachSkillName: getSetting('coach_skill_name')
+        ?? (numOrNull(getSetting('coach_skill_level')) != null ? skillLevelName(numOrNull(getSetting('coach_skill_level'))) : null),
       assistantLevels: numOrNull(getSetting('assistant_levels')),
     };
   } else {

@@ -39,7 +39,7 @@ function logImport(status, message) {
  *   these come from the Settings form instead if the manager wants the net
  *   income chart to have something to show.
  * @param {{trainingTypeId: number, intensityPct: number|null, staminaPct: number|null,
- *          coachLevel: number|null, assistantLevels: number|null}|null} [trainingFocus]
+ *          coachLevel5: number|null, assistant1Level: number|null, assistant2Level: number|null}|null} [trainingFocus]
  *   optional — what Hattrick's "Set current training" page currently says,
  *   as one of the real 11 training types (TRAINING_TYPES in chpp/parse.js).
  *   Manually reported, not fetched, so it's only as fresh as your last
@@ -145,8 +145,17 @@ function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) 
       setSetting('training_focus_stamina_pct', trainingFocus.staminaPct);
       setSetting('training_focus_set_at', new Date().toISOString());
       setSetting('training_focus_source', 'csv');
-      if (trainingFocus.coachLevel != null) setSetting('coach_skill_level', trainingFocus.coachLevel);
-      if (trainingFocus.assistantLevels != null) setSetting('assistant_levels', trainingFocus.assistantLevels);
+      // The form reports coach skill on the 1–5 scale Hattrick's club page
+      // shows; the training model (and the CHPP TrainerData path) use the
+      // global 4–8 scale — the two map 1:1, offset by 3.
+      if (trainingFocus.coachLevel5 != null) setSetting('coach_skill_level', trainingFocus.coachLevel5 + 3);
+      // Assistants stored individually (so the form can prefill them back)
+      // plus as the summed 0–10 value the training model consumes.
+      if (trainingFocus.assistant1Level != null || trainingFocus.assistant2Level != null) {
+        setSetting('assistant1_level', trainingFocus.assistant1Level ?? 0);
+        setSetting('assistant2_level', trainingFocus.assistant2Level ?? 0);
+        setSetting('assistant_levels', (trainingFocus.assistant1Level ?? 0) + (trainingFocus.assistant2Level ?? 0));
+      }
     } else {
       ['training_focus_skill', 'training_focus_intensity_pct', 'training_focus_stamina_pct',
         'training_focus_set_at', 'training_focus_source', 'training_focus_type_label', 'training_focus_type_id']
@@ -172,7 +181,12 @@ function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) 
       intensityPct: trainingFocus.intensityPct,
       staminaPct: trainingFocus.staminaPct,
     } : null,
-    { coachLevel: trainingFocus?.coachLevel ?? null, assistantLevels: trainingFocus?.assistantLevels ?? null }
+    {
+      coachLevel: trainingFocus?.coachLevel5 != null ? trainingFocus.coachLevel5 + 3 : null,
+      assistantLevels: trainingFocus && (trainingFocus.assistant1Level != null || trainingFocus.assistant2Level != null)
+        ? (trainingFocus.assistant1Level ?? 0) + (trainingFocus.assistant2Level ?? 0)
+        : null,
+    }
   );
 
   logImport('ok', `${format} format, ${result.playerCount} players, team TSI ${result.teamTsi}`);

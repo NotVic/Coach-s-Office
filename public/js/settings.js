@@ -7,6 +7,9 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 // Hattrick's real training types (incl. combined ones), fetched from the
 // server so the list can't drift from the sync/model's own mapping.
 let trainingTypes = [];
+// Last import's stored values — prefills the CSV form so a weekly
+// re-import doesn't mean re-typing info that rarely changes.
+let csvDefaults = {};
 
 let status = null;
 let pendingAuthorizeUrl = null; // set once /connect has returned, cleared once verified
@@ -149,39 +152,53 @@ function renderCsvCard() {
     ` : ''}
     <div id="csvError"></div>
     <div class="field"><label for="csvTeamName">Team name</label>
-      <input type="text" id="csvTeamName" value="${isCsvSourced ? (status.teamName || '') : ''}" placeholder="e.g. My Squad">
+      <input type="text" id="csvTeamName" value="${csvDefaults.teamName || (isCsvSourced ? (status.teamName || '') : '')}" placeholder="e.g. My Squad">
     </div>
     <div class="field"><label for="csvFile">CSV file</label><input type="file" id="csvFile" accept=".csv,text/csv"></div>
-    <details style="margin-bottom:14px;">
+    <details style="margin-bottom:14px;" ${csvDefaults.cash != null || csvDefaults.weeklyIncome != null ? 'open' : ''}>
       <summary style="cursor:pointer;font-size:13px;font-weight:600;">Team finances (optional)</summary>
       <p class="muted" style="font-size:12px;margin:6px 0;">
         Per-player exports don't include club finances — if you want the Dashboard's weekly net income chart to
         have something to show, copy these from Hattrick's own Club → Finances page.
       </p>
-      <div class="field"><label for="csvCash">Cash</label><input type="text" id="csvCash" inputmode="numeric" placeholder="e.g. 500000"></div>
-      <div class="field"><label for="csvIncome">Weekly income</label><input type="text" id="csvIncome" inputmode="numeric" placeholder="e.g. 50000"></div>
-      <div class="field"><label for="csvExpenses">Weekly expenses</label><input type="text" id="csvExpenses" inputmode="numeric" placeholder="e.g. 42000"></div>
+      <div class="field"><label for="csvCash">Cash</label><input type="text" id="csvCash" inputmode="numeric" value="${csvDefaults.cash ?? ''}" placeholder="e.g. 500000"></div>
+      <div class="field"><label for="csvIncome">Weekly income</label><input type="text" id="csvIncome" inputmode="numeric" value="${csvDefaults.weeklyIncome ?? ''}" placeholder="e.g. 50000"></div>
+      <div class="field"><label for="csvExpenses">Weekly expenses</label><input type="text" id="csvExpenses" inputmode="numeric" value="${csvDefaults.weeklyExpenses ?? ''}" placeholder="e.g. 42000"></div>
     </details>
-    <details style="margin-bottom:14px;">
+    <details style="margin-bottom:14px;" ${csvDefaults.trainingTypeId != null ? 'open' : ''}>
       <summary style="cursor:pointer;font-size:13px;font-weight:600;">Training focus (optional)</summary>
       <p class="muted" style="font-size:12px;margin:6px 0;">
-        Copy this from Hattrick's own "Set current training" page. It only labels which skill is highlighted as
-        "Training" on a player's page — it doesn't change any ETA math, and it's a snapshot of what you reported
-        at import time, not something Coach's Office keeps in sync on its own. Leave blank to clear it.
+        Copy this from Hattrick's own "Set current training" page.
+        ${csvDefaults.trainingTypeId != null
+          ? '<b>Prefilled from your last import</b> — adjust only what changed in Hattrick since then.'
+          : 'This is a snapshot of what you report at import time, not something the app keeps in sync on its own.'}
+        Setting "Currently training" back to "— not set —" clears the stored focus.
       </p>
       <div class="field"><label for="csvTrainingType">Currently training</label>
         <select id="csvTrainingType">
           <option value="">— not set —</option>
-          ${trainingTypes.map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}
+          ${trainingTypes.map((t) => `<option value="${t.id}" ${t.id === csvDefaults.trainingTypeId ? 'selected' : ''}>${t.label}</option>`).join('')}
         </select>
         <span class="hint">Pick the exact type from Hattrick's "Set current training" dropdown — combined types (Wing Attacks, Shooting, …) train at different speeds than their pure counterparts.</span>
       </div>
-      <div class="field"><label for="csvTrainingIntensity">Training intensity %</label><input type="text" id="csvTrainingIntensity" inputmode="numeric" placeholder="e.g. 96"></div>
-      <div class="field"><label for="csvTrainingStamina">Stamina training %</label><input type="text" id="csvTrainingStamina" inputmode="numeric" placeholder="e.g. 14"></div>
-      <div class="field"><label for="csvCoachLevel">Coach skill level (4–8)</label><input type="text" id="csvCoachLevel" inputmode="numeric" placeholder="e.g. 7 for Solid">
-        <span class="hint">From Club → Staff. Feeds the modeled training estimate; blank assumes Solid (7).</span></div>
-      <div class="field"><label for="csvAssistants">Assistant coach levels, summed (0–10)</label><input type="text" id="csvAssistants" inputmode="numeric" placeholder="e.g. 8 for two level-4 assistants">
-        <span class="hint">Add up your assistant coaches' levels. Blank assumes none.</span></div>
+      <div class="field"><label for="csvTrainingIntensity">Training intensity %</label><input type="text" id="csvTrainingIntensity" inputmode="numeric" value="${csvDefaults.trainingIntensity ?? ''}" placeholder="e.g. 96"></div>
+      <div class="field"><label for="csvTrainingStamina">Stamina training %</label><input type="text" id="csvTrainingStamina" inputmode="numeric" value="${csvDefaults.trainingStaminaPct ?? ''}" placeholder="e.g. 14"></div>
+      <div class="field"><label for="csvCoachLevel">Coach skill (out of 5, as shown in Hattrick)</label>
+        <select id="csvCoachLevel">
+          <option value="">— not set (assumes 4/5, Solid) —</option>
+          ${[1, 2, 3, 4, 5].map((v) => `<option value="${v}" ${v === csvDefaults.coachLevel5 ? 'selected' : ''}>${v}/5 (${['Weak', 'Inadequate', 'Passable', 'Solid', 'Excellent'][v - 1]})</option>`).join('')}
+        </select>
+        <span class="hint">From Club → Staff — the trainer-skill bar out of 5. Feeds the modeled training estimate.</span></div>
+      <div class="field"><label for="csvAssistant1">Assistant coach 1 level (out of 5)</label>
+        <select id="csvAssistant1">
+          <option value="">— none —</option>
+          ${[1, 2, 3, 4, 5].map((v) => `<option value="${v}" ${v === csvDefaults.assistant1Level ? 'selected' : ''}>${v}/5</option>`).join('')}
+        </select></div>
+      <div class="field"><label for="csvAssistant2">Assistant coach 2 level (out of 5)</label>
+        <select id="csvAssistant2">
+          <option value="">— none —</option>
+          ${[1, 2, 3, 4, 5].map((v) => `<option value="${v}" ${v === csvDefaults.assistant2Level ? 'selected' : ''}>${v}/5</option>`).join('')}
+        </select></div>
     </details>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="pill-btn primary" id="importCsvBtn" type="button">Import CSV</button>
@@ -200,8 +217,9 @@ async function importCsv() {
   const trainingTypeId = document.getElementById('csvTrainingType').value;
   const trainingIntensity = document.getElementById('csvTrainingIntensity').value.trim();
   const trainingStaminaPct = document.getElementById('csvTrainingStamina').value.trim();
-  const coachLevel = document.getElementById('csvCoachLevel').value.trim();
-  const assistantLevels = document.getElementById('csvAssistants').value.trim();
+  const coachLevel5 = document.getElementById('csvCoachLevel').value;
+  const assistant1Level = document.getElementById('csvAssistant1').value;
+  const assistant2Level = document.getElementById('csvAssistant2').value;
   const file = fileInput.files[0];
   const btn = document.getElementById('importCsvBtn');
   if (!file) return showError('csvError', 'Choose a CSV file first.');
@@ -212,9 +230,9 @@ async function importCsv() {
     const text = await file.text();
     const result = await apiPost('/api/csv/import', {
       csv: text, teamName, cash, weeklyIncome, weeklyExpenses,
-      trainingTypeId, trainingIntensity, trainingStaminaPct, coachLevel, assistantLevels,
+      trainingTypeId, trainingIntensity, trainingStaminaPct, coachLevel5, assistant1Level, assistant2Level,
     });
-    status = await apiGet('/api/chpp/status');
+    [status, csvDefaults] = await Promise.all([apiGet('/api/chpp/status'), apiGet('/api/csv/defaults')]);
     renderCsvCard();
     const formatNote = result.format === 'hattrick' ? ' (recognized as a Hattrick players export)' : ' (template format)';
     document.getElementById('csvError').innerHTML =
@@ -297,10 +315,11 @@ async function saveSchedule() {
 async function load() {
   try {
     let scheduleRes, typesRes;
-    [status, scheduleRes, typesRes] = await Promise.all([
+    [status, scheduleRes, typesRes, csvDefaults] = await Promise.all([
       apiGet('/api/chpp/status'),
       apiGet('/api/settings/schedule'),
       apiGet('/api/settings/training-types'),
+      apiGet('/api/csv/defaults'),
     ]);
     schedule = scheduleRes.schedule;
     trainingTypes = typesRes.types;
