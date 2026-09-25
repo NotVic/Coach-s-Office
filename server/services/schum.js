@@ -85,6 +85,58 @@ function weeklyGain({ skillLevel, trainingTypeId, ageYears, intensityPct, stamin
   return { gainPerWeek: gain, assumptions };
 }
 
+// ---- Who a training type actually trains -------------------------------
+//
+// A training type only trains players fielded in certain position sectors,
+// and not all of them equally — this is the K(time) input to the formula
+// above, and it's why a forward gains almost nothing from Playmaking
+// training. Taken from HO's WeeklyTraining subclasses
+// (full/partly/osmosisTrainingSectors), with HO's sectors mapped onto this
+// app's position codes: Goal→GK, Back→WB, CentralDefence→CD, Wing→WI,
+// InnerMidfield→IM, Forward→FW.
+//
+// timeFactor for a player who plays a full 90 minutes there: full = 1,
+// partly = 0.5 (HO's PartlyLengthRate of 2), osmosis = the type's own
+// osmosisKoeff, and a sector the type doesn't list at all = 0.
+const ALL_POSITIONS = ['GK', 'WB', 'CD', 'WI', 'IM', 'FW'];
+
+const TRAINING_REACH = {
+  2:  { full: ALL_POSITIONS, partly: [], osmosis: [], osmosisKoeff: 1 / 6 },        // Set Pieces
+  3:  { full: ['CD', 'WB'], partly: [], osmosis: ['GK', 'WI', 'IM', 'FW'], osmosisKoeff: 1 / 6 },   // Defending
+  4:  { full: ['FW'], partly: [], osmosis: ['GK', 'WB', 'CD', 'WI', 'IM'], osmosisKoeff: 1 / 6 },   // Scoring
+  5:  { full: ['WI'], partly: ['WB'], osmosis: ['CD', 'IM', 'FW'], osmosisKoeff: 1 / 8 },           // Crossing
+  6:  { full: ALL_POSITIONS, partly: [], osmosis: [], osmosisKoeff: 1 / 6 },        // Shooting
+  7:  { full: ['WI', 'IM', 'FW'], partly: [], osmosis: ['GK', 'WB', 'CD'], osmosisKoeff: 1 / 6 },   // Short Passes
+  8:  { full: ['IM'], partly: ['WI'], osmosis: ['GK', 'WB', 'CD', 'FW'], osmosisKoeff: 1 / 8 },     // Playmaking
+  9:  { full: ['GK'], partly: [], osmosis: [], osmosisKoeff: 1 / 6 },               // Goalkeeping
+  10: { full: ['WB', 'CD', 'WI', 'IM'], partly: [], osmosis: ['GK', 'FW'], osmosisKoeff: 1 / 6 },   // Through Passes
+  11: { full: ['GK', 'WB', 'CD', 'WI', 'IM'], partly: [], osmosis: ['FW'], osmosisKoeff: 1 / 6 },   // Defensive Positions
+  12: { full: ['WI', 'FW'], partly: [], osmosis: ['GK', 'WB', 'CD', 'IM'], osmosisKoeff: 5 / 39 },  // Wing Attacks
+};
+
+/** Full reach table for a training type (for "who does this train?" UI). */
+function trainingReach(trainingTypeId) {
+  const reach = TRAINING_REACH[trainingTypeId];
+  if (!reach) return null;
+  return {
+    full: reach.full,
+    partly: reach.partly,
+    osmosis: reach.osmosis,
+    none: ALL_POSITIONS.filter((p) => !reach.full.includes(p) && !reach.partly.includes(p) && !reach.osmosis.includes(p)),
+    osmosisKoeff: reach.osmosisKoeff,
+  };
+}
+
+/** How much training one position gets from a type: { tier, timeFactor }. */
+function positionTimeFactor(trainingTypeId, positionCode) {
+  const reach = TRAINING_REACH[trainingTypeId];
+  if (!reach || !positionCode) return { tier: 'unknown', timeFactor: null };
+  if (reach.full.includes(positionCode)) return { tier: 'full', timeFactor: 1 };
+  if (reach.partly.includes(positionCode)) return { tier: 'partly', timeFactor: 0.5 };
+  if (reach.osmosis.includes(positionCode)) return { tier: 'osmosis', timeFactor: reach.osmosisKoeff };
+  return { tier: 'none', timeFactor: 0 };
+}
+
 // ---- Skill drops (community model, from HO's SkillDrops.java) ----------
 
 // Age at which each skill starts to decay naturally.
@@ -143,8 +195,8 @@ function weeklyDrop({ skillLevel, ageYears, skillKey, isTrained }) {
  * documents it landing about a week off for some players, so this app
  * never shows it as a bare number.
  */
-function modeledEta({ skillLevel, subProgress = 0, trainingTypeId, ageYears, intensityPct, staminaPct, coachLevel, assistantLevels, skillKey }) {
-  const gain = weeklyGain({ skillLevel, trainingTypeId, ageYears, intensityPct, staminaPct, coachLevel, assistantLevels });
+function modeledEta({ skillLevel, subProgress = 0, trainingTypeId, ageYears, intensityPct, staminaPct, coachLevel, assistantLevels, skillKey, timeFactor }) {
+  const gain = weeklyGain({ skillLevel, trainingTypeId, ageYears, intensityPct, staminaPct, coachLevel, assistantLevels, timeFactor });
   if (!gain) return null;
   const drop = weeklyDrop({ skillLevel, ageYears, skillKey, isTrained: true });
   const net = gain.gainPerWeek - drop;
@@ -173,4 +225,6 @@ module.exports = {
   weeklyGain,
   weeklyDrop,
   modeledEta,
+  trainingReach,
+  positionTimeFactor,
 };

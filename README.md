@@ -2,7 +2,7 @@
 
 A self-hosted companion dashboard for [Hattrick](https://www.hattrick.org) —
 the browser football manager game. It reads your squad via Hattrick's CHPP
-API and helps you answer the three questions a manager checks every week:
+API and helps you answer the questions a manager checks every week:
 
 1. **How is my squad doing, overall?** — Team TSI & Worth over time, age
    distribution, squad composition by position line, weekly net income, and
@@ -11,7 +11,13 @@ API and helps you answer the three questions a manager checks every week:
 2. **What's happening with this player?** — skills with a training ETA,
    transfer value trend, TSI history, recent match ratings, and wage shown
    in context against your team's income.
-3. **What should I do next?** — next-match prep (opponent snapshot, a
+3. **Who is my training actually developing?** — a Training page showing
+   the club's current setup (type, intensity, stamina split, coach and
+   assistants), which positions that training reaches and how strongly, and
+   every player ranked by how close they are to their next level in the
+   trained skill — with a toggle between "in their own position" and "if I
+   field them where this training lands".
+4. **What should I do next?** — next-match prep (opponent snapshot, a
    suggested XI, availability) and a weekly digest of what actually changed.
 
 It's a companion, not a replacement for hattrick.org — read-only in v1, no
@@ -86,10 +92,10 @@ Your tokens are stored only in the local SQLite database (`./data/` — see
 ## Or import a CSV instead
 
 Don't have your CHPP keys yet, or just prefer a spreadsheet? Settings has a
-CSV import that fills in the dashboard, player detail, and digest the same
-way a real sync would (Match Prep still needs a real CHPP connection — it
-needs live fixture and opponent data a CSV can't provide). Two input
-formats are accepted, auto-detected by header row:
+CSV import that fills in the dashboard, player detail, training board, and
+digest the same way a real sync would (Match Prep has its own manual
+fixture entry, since no CSV carries your next opponent). Two input formats
+are accepted, auto-detected by header row:
 
 - **A Hattrick players export**, uploaded as-is — recognized by its
   `PlayerID`/`Name`/`Keeper`/`Last match position`-style columns (this is
@@ -117,9 +123,8 @@ generated from the player's name so training-ETA history survives
 re-imports, as long as the name doesn't change between them) but required
 in a Hattrick export, since it's always present there and is what keeps
 that history stable and unambiguous. CSV-imported data is superseded, not
-merged, the moment you connect via CHPP for real — a real Hattrick team has
-a genuinely
-different team ID.
+merged, the moment you connect via CHPP for real — a real Hattrick team has a
+genuinely different team ID.
 
 ## Deploy with Portainer (git-repo stack)
 
