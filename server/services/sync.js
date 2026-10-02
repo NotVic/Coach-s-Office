@@ -3,6 +3,8 @@ const chpp = require('../chpp/client');
 const { parsePlayersXml, parseTeamDetailsXml, parseEconomyXml, parseTrainingXml, parseStaffListXml, skillLevelName } = require('../chpp/parse');
 const { estimateValue } = require('./valuation');
 const { updateSubskills } = require('./subskills');
+const { recordTraining } = require('./trainingLog');
+const { computeCalibration } = require('./calibration');
 const store = require('./store');
 
 // CHPP file versions. These have historically stayed stable for years at a
@@ -89,7 +91,7 @@ async function runFullSync({ isInitial = false } = {}) {
       };
       store.upsertPlayer(row);
       store.upsertPlayerSnapshot({
-        playerId: p.playerId, date, tsi: p.tsi, valueEstimate, form: p.form, salary: p.salary,
+        playerId: p.playerId, date, positionCode: p.positionCode, tsi: p.tsi, valueEstimate, form: p.form, salary: p.salary,
         injuryWeeks: row.injuryWeeks,
         lastMatchRating: row.lastMatchRating, lastMatchDate: row.lastMatchDate,
         keeper: p.skills.keeper, defending: p.skills.defending, playmaking: p.skills.playmaking,
@@ -180,6 +182,13 @@ async function runFullSync({ isInitial = false } = {}) {
     date, teamId, teamTsi, teamWorth, cash, weeklyIncome, weeklyExpenses,
   });
 
+  // Log what's being trained as of this sync (services/trainingLog.js).
+  try {
+    recordTraining(date);
+  } catch (err) {
+    logSync('training_log', 'skipped', err.message);
+  }
+
   // Schum-formula sub-skill bookkeeping (services/subskills.js) — runs
   // after the training/staff fetches so it uses this sync's fresh inputs.
   try {
@@ -200,6 +209,7 @@ async function runFullSync({ isInitial = false } = {}) {
       {
         coachLevel: settingNum('coach_skill_level'),
         assistantLevels: settingNum('assistant_levels'),
+        calibration: teamId ? computeCalibration(teamId).factor : 1,
       }
     );
   } catch (err) {

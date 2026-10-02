@@ -42,19 +42,19 @@ const deactivateMissingPlayersStmt = db.prepare(`
 const upsertPlayerSnapshotStmt = db.prepare(`
   INSERT INTO player_snapshots (
     player_id, snapshot_date, tsi, value_estimate, form, salary, injury_weeks,
-    last_match_rating, last_match_date,
+    last_match_rating, last_match_date, position_code,
     skill_keeper, skill_defending, skill_playmaking, skill_winger,
     skill_passing, skill_scoring, skill_setpieces, skill_stamina
   ) VALUES (
     @playerId, @date, @tsi, @valueEstimate, @form, @salary, @injuryWeeks,
-    @lastMatchRating, @lastMatchDate,
+    @lastMatchRating, @lastMatchDate, @positionCode,
     @keeper, @defending, @playmaking, @winger, @passing, @scoring, @setpieces, @stamina
   )
   ON CONFLICT(player_id, snapshot_date) DO UPDATE SET
     tsi = excluded.tsi, value_estimate = excluded.value_estimate, form = excluded.form,
     salary = excluded.salary, injury_weeks = excluded.injury_weeks,
     last_match_rating = excluded.last_match_rating, last_match_date = excluded.last_match_date,
-    skill_keeper = excluded.skill_keeper,
+    position_code = excluded.position_code, skill_keeper = excluded.skill_keeper,
     skill_defending = excluded.skill_defending, skill_playmaking = excluded.skill_playmaking,
     skill_winger = excluded.skill_winger, skill_passing = excluded.skill_passing,
     skill_scoring = excluded.skill_scoring, skill_setpieces = excluded.skill_setpieces,
@@ -70,7 +70,7 @@ const upsertTeamSnapshotStmt = db.prepare(`
 `);
 
 function upsertPlayer(row) { upsertPlayerStmt.run(row); }
-function upsertPlayerSnapshot(row) { upsertPlayerSnapshotStmt.run(row); }
+function upsertPlayerSnapshot(row) { upsertPlayerSnapshotStmt.run({ positionCode: null, ...row }); }
 function upsertTeamSnapshot(row) { upsertTeamSnapshotStmt.run(row); }
 function deactivateMissingPlayers(teamId, keepPlayerIds) {
   deactivateMissingPlayersStmt.run(teamId, JSON.stringify(keepPlayerIds));

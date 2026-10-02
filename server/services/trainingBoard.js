@@ -10,6 +10,8 @@ const { db, getSetting } = require('../db');
 const schum = require('./schum');
 const { getSubskill } = require('./subskills');
 const { estimateTrainingEta } = require('./training');
+const { computeCalibration } = require('./calibration');
+const { trainingPeriods } = require('./trainingLog');
 const { skillLevelName } = require('../chpp/parse');
 
 const SKILL_LABELS = {
@@ -121,6 +123,8 @@ function buildTrainingBoard({ assumeFullMinutes = false } = {}) {
   }
 
   const reach = focus.typeId != null ? schum.trainingReach(focus.typeId) : null;
+  // Club-specific correction learned from past level-ups (services/calibration.js).
+  const calibration = computeCalibration(teamId);
 
   const rows = players.map((p) => {
     const level = p[focus.skillKey];
@@ -148,7 +152,7 @@ function buildTrainingBoard({ assumeFullMinutes = false } = {}) {
         skillLevel: level, trainingTypeId: focus.typeId, ageYears: p.age_years,
         intensityPct: focus.intensityPct, staminaPct: focus.staminaPct,
         coachLevel: focus.coachSkillLevel, assistantLevels: focus.assistantLevels,
-        skillKey: focus.skillKey, timeFactor: posFit.timeFactor,
+        skillKey: focus.skillKey, timeFactor: posFit.timeFactor, calibration: calibration.factor,
       }) : null;
       const net = actual?.status === 'ok' ? actual.gainPerWeek : 0;
       if (weeks != null) historyProgress = Math.min(0.99, weeks * net);
@@ -168,6 +172,7 @@ function buildTrainingBoard({ assumeFullMinutes = false } = {}) {
         assistantLevels: focus.assistantLevels,
         skillKey: focus.skillKey,
         timeFactor,
+        calibration: calibration.factor,
       });
     }
 
@@ -233,6 +238,12 @@ function buildTrainingBoard({ assumeFullMinutes = false } = {}) {
     focus,
     reach,
     squadByTier,
+    calibration,
+    trainingHistory: trainingPeriods().map((t) => ({
+      ...t,
+      skillLabel: t.skillKey ? SKILL_LABELS[t.skillKey] ?? t.skillKey : null,
+      coachLevel5: t.coachLevel != null && t.coachLevel >= 4 && t.coachLevel <= 8 ? t.coachLevel - 3 : null,
+    })),
     summary: {
       trainingCount: rows.filter((r) => r.status === 'training').length,
       soonCount: rows.filter((r) => r.levelUpSoon).length,

@@ -3,6 +3,7 @@ const { db, getSetting } = require('../db');
 const { estimateValueRange } = require('../services/valuation');
 const { estimateTrainingEta } = require('../services/training');
 const { modeledEta, weeklyDrop } = require('../services/schum');
+const { computeCalibration } = require('../services/calibration');
 const { getSubskill } = require('../services/subskills');
 const { skillLevelName } = require('../chpp/parse');
 
@@ -106,6 +107,7 @@ router.get('/:id', (req, res) => {
         coachLevel: trainingFocus.coachSkillLevel,
         assistantLevels,
         skillKey: key,
+        calibration: computeCalibration(player.team_id).factor,
       });
       if (modeled) {
         skill.modeled = { ...modeled, progressPct: Math.round(subProgress * 100) };

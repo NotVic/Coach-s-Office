@@ -10,11 +10,13 @@
 // once you actually connect, since a real Hattrick team has a different,
 // real team ID.
 const { parseCsv } = require('../lib/csv');
-const { setSetting, deleteSetting, withTransaction, db } = require('../db');
+const { getSetting, setSetting, deleteSetting, withTransaction, db } = require('../db');
 const { estimateValue } = require('./valuation');
 const { detectFormat, csvRecordToPlayerInput, hattrickRecordToPlayerInput, stablePlayerId } = require('./csvSchema');
 const { SPECIALTIES, TRAINING_TYPES } = require('../chpp/parse');
 const { updateSubskills } = require('./subskills');
+const { recordTraining } = require('./trainingLog');
+const { computeCalibration } = require('./calibration');
 const store = require('./store');
 
 // Fixed sentinel, chosen well outside any real Hattrick team ID's range
@@ -112,7 +114,7 @@ function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) 
       };
       store.upsertPlayer(row);
       store.upsertPlayerSnapshot({
-        playerId: p.resolvedId, date, tsi: p.tsi, valueEstimate, form: p.form, salary: p.salary,
+        playerId: p.resolvedId, date, positionCode: p.positionCode, tsi: p.tsi, valueEstimate, form: p.form, salary: p.salary,
         injuryWeeks: p.injuryWeeks, lastMatchRating: p.lastMatchRating, lastMatchDate: p.lastMatchDate,
         keeper: p.skills.keeper, defending: p.skills.defending, playmaking: p.skills.playmaking,
         winger: p.skills.winger, passing: p.skills.passing, scoring: p.skills.scoring,
@@ -138,12 +140,17 @@ function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) 
     // rather than silently keeping a now-unconfirmed value around.
     if (trainingFocus) {
       const type = TRAINING_TYPES[trainingFocus.trainingTypeId];
+      // Only a real change of training type restarts the "since" date —
+      // re-reporting the same training on every import used to reset it,
+      // which cut every history window down to the time since the last upload.
+      if (getSetting('training_focus_type_id') !== String(trainingFocus.trainingTypeId) || !getSetting('training_focus_set_at')) {
+        setSetting('training_focus_set_at', new Date().toISOString());
+      }
       setSetting('training_focus_skill', type.skillKey);
       setSetting('training_focus_type_id', trainingFocus.trainingTypeId);
       setSetting('training_focus_type_label', type.label);
       setSetting('training_focus_intensity_pct', trainingFocus.intensityPct);
       setSetting('training_focus_stamina_pct', trainingFocus.staminaPct);
-      setSetting('training_focus_set_at', new Date().toISOString());
       setSetting('training_focus_source', 'csv');
       // The form reports coach skill on the 1–5 scale Hattrick's club page
       // shows; the training model (and the CHPP TrainerData path) use the
@@ -161,6 +168,8 @@ function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) 
         'training_focus_set_at', 'training_focus_source', 'training_focus_type_label', 'training_focus_type_id']
         .forEach(deleteSetting);
     }
+
+    recordTraining(date);
 
     return { teamTsi, teamWorth, playerCount: resolved.length };
   };
@@ -186,6 +195,7 @@ function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) 
       assistantLevels: trainingFocus && (trainingFocus.assistant1Level != null || trainingFocus.assistant2Level != null)
         ? (trainingFocus.assistant1Level ?? 0) + (trainingFocus.assistant2Level ?? 0)
         : null,
+      calibration: computeCalibration(CSV_IMPORT_TEAM_ID).factor,
     }
   );
 

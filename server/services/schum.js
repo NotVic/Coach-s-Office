@@ -55,8 +55,10 @@ function ageFactor(ageYears) {
  * `assumptions` so the UI can say exactly what was guessed.
  * Returns null when the training type has no coefficient (e.g. a
  * CSV-reported "stamina" focus — stamina isn't a trainable type here).
+ * `calibration` is the club's learned correction (services/calibration.js),
+ * 1 = the formula as published.
  */
-function weeklyGain({ skillLevel, trainingTypeId, ageYears, intensityPct, staminaPct, coachLevel, assistantLevels, timeFactor }) {
+function weeklyGain({ skillLevel, trainingTypeId, ageYears, intensityPct, staminaPct, coachLevel, assistantLevels, timeFactor, calibration = 1 }) {
   const koeff = TYPE_COEFFICIENTS[trainingTypeId];
   if (koeff == null || skillLevel == null || ageYears == null) return null;
 
@@ -70,8 +72,11 @@ function weeklyGain({ skillLevel, trainingTypeId, ageYears, intensityPct, stamin
     assumptions.push('assumes full minutes in a trained position every match');
   }
 
+  if (calibration == null) calibration = 1;
+
   const gain = Math.min(1,
     koeff
+    * calibration
     * timeFactor
     * ageFactor(ageYears)
     * (1 + 0.035 * Math.min(10, Math.max(0, assistantLevels)))
@@ -195,8 +200,8 @@ function weeklyDrop({ skillLevel, ageYears, skillKey, isTrained }) {
  * documents it landing about a week off for some players, so this app
  * never shows it as a bare number.
  */
-function modeledEta({ skillLevel, subProgress = 0, trainingTypeId, ageYears, intensityPct, staminaPct, coachLevel, assistantLevels, skillKey, timeFactor }) {
-  const gain = weeklyGain({ skillLevel, trainingTypeId, ageYears, intensityPct, staminaPct, coachLevel, assistantLevels, timeFactor });
+function modeledEta({ skillLevel, subProgress = 0, trainingTypeId, ageYears, intensityPct, staminaPct, coachLevel, assistantLevels, skillKey, timeFactor, calibration }) {
+  const gain = weeklyGain({ skillLevel, trainingTypeId, ageYears, intensityPct, staminaPct, coachLevel, assistantLevels, timeFactor, calibration });
   if (!gain) return null;
   const drop = weeklyDrop({ skillLevel, ageYears, skillKey, isTrained: true });
   const net = gain.gainPerWeek - drop;

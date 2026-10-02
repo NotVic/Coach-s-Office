@@ -111,9 +111,10 @@ function estimateTrainingEta(snapshots, skillKey, opts = {}) {
   // so approximate the window-midpoint age from the current age minus half
   // the window length — at this app's window lengths (weeks to a few months)
   // the approximation error is far smaller than the estimate's own spread.
+  // A Hattrick year is 16 weeks, not 52.
   let ageAdjusted = false;
   if (ageYears != null && ageYears > 0) {
-    const ageMid = ageYears - (totalWeeks / 2) / 52;
+    const ageMid = ageYears - (totalWeeks / 2) / 16;
     weeksPerLevel *= ageFactor(ageMid) / ageFactor(ageYears);
     ageAdjusted = true;
   }

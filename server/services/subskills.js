@@ -43,7 +43,8 @@ function clamp(v) {
  * @param {Array} players rows shaped like services/store.js's upsertPlayer
  *   input (playerId, ageYears, keeper/defending/... skill fields)
  * @param {object|null} focus { skillKey, trainingTypeId, intensityPct, staminaPct }
- * @param {object} context { coachLevel, assistantLevels }
+ * @param {object} context { coachLevel, assistantLevels, calibration } — calibration
+ *   is the club's model correction factor (services/calibration.js)
  * @param {string} nowIso
  */
 function updateSubskills(players, focus, context = {}, nowIso = new Date().toISOString()) {
@@ -92,6 +93,7 @@ function updateSubskills(players, focus, context = {}, nowIso = new Date().toISO
           coachLevel: context.coachLevel,
           assistantLevels: context.assistantLevels,
           timeFactor,
+          calibration: context.calibration,
         }) : null;
         if (gain) {
           delta = gain.gainPerWeek - schum.weeklyDrop({ skillLevel: currentLevel, ageYears: p.ageYears, skillKey, isTrained: true });

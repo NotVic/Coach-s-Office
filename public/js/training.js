@@ -190,10 +190,72 @@ function boardSection(data) {
   <p class="muted" style="font-size:11.5px;margin-top:10px;">
     <b>Est. next level</b> is the community Schum formula (see Settings → About the estimates): it multiplies the
     training type, your intensity and stamina split, coach and assistants, the player's age and current level, and
-    how much of the training their position actually gets. <b>Observed</b> is the independent estimate from this
+    how much of the training their position actually gets — then corrected by the club's own calibration (bottom of
+    this page). <b>Observed</b> is the independent estimate from this
     app's own tracked history for that player — when the two disagree, something in the assumptions is probably
     off (minutes played is the usual suspect). Both are estimates, never promises.
   </p>`;
+}
+
+function calibrationSection(data) {
+  const c = data.calibration;
+  if (!c || !c.runs) {
+    return `<div class="card">
+      <h3 style="margin-bottom:6px;">Model calibration</h3>
+      <p class="muted" style="font-size:12.5px;margin:0;">
+        Not calibrated yet — the estimates use the formula as published. Calibration needs a player to level up
+        <b>twice</b> in a trained skill while this app is tracking (the first level-up only marks the start), so
+        keep importing or syncing weekly and it will pick up on its own.
+      </p>
+    </div>`;
+  }
+  const pct = Math.round((c.factor - 1) * 100);
+  const verdict = Math.abs(pct) < 5
+    ? 'Your players train about as fast as the formula predicts.'
+    : pct > 0
+      ? `Your players train about ${pct}% faster than the formula predicts, so estimates are shortened to match.`
+      : `Your players train about ${-pct}% slower than the formula predicts, so estimates are lengthened to match.`;
+  const runs = c.recent.map((r) => `<div class="player-row">
+      <span><a href="/player.html?id=${r.playerId}" style="color:inherit;">${r.name}</a>
+        <span class="muted" style="font-size:11.5px;">${formatDate(r.from)} → ${formatDate(r.to)}</span></span>
+      <span class="right">+${r.levels} seen · ${r.modeled} modeled</span>
+    </div>`).join('');
+  return `<div class="card">
+    <h3 style="margin-bottom:4px;">Model calibration <span class="chip ${c.confidence === 'high' ? 'good' : c.confidence === 'medium' ? 'gold' : 'warning'}">${c.confidence} confidence</span></h3>
+    <p style="font-size:13px;margin:0 0 6px;"><b>×${c.factor.toFixed(2)}</b> — ${verdict}</p>
+    <p class="muted" style="font-size:11.5px;margin:0 0 8px;">
+      From ${c.runs} level-up${c.runs === 1 ? '' : 's'} across ${c.players} player${c.players === 1 ? '' : 's'}:
+      ${c.levelsObserved} level${c.levelsObserved === 1 ? '' : 's'} actually gained where the formula, replayed with the
+      training logged at the time, expected ${c.levelsModeled}. Few samples are pulled toward ×1.00.
+    </p>
+    ${runs}
+  </div>`;
+}
+
+function historySection(data) {
+  const periods = data.trainingHistory || [];
+  if (!periods.length) {
+    return `<div class="card"><h3 style="margin-bottom:6px;">Training history</h3>
+      <p class="muted" style="font-size:12.5px;margin:0;">Nothing logged yet — every sync or import from now on records what was trained.</p></div>`;
+  }
+  const rows = periods.map((t) => {
+    const name = t.typeId != null ? (t.typeLabel || t.skillLabel || `Type ${t.typeId}`) : '<span class="muted">Not reported</span>';
+    const settings = t.typeId != null ? [
+      t.intensityPct != null ? `${t.intensityPct}% int.` : null,
+      t.staminaPct != null ? `${t.staminaPct}% stam.` : null,
+      t.coachLevel5 != null ? `coach ${t.coachLevel5}/5` : null,
+    ].filter(Boolean).join(' · ') + (t.settingsVaried ? ' (varied)' : '') : '';
+    const span = `${formatDate(t.from)} → ${t.until ? formatDate(t.until) : 'now'}`;
+    return `<div class="player-row">
+      <span><b>${name}</b> <span class="muted" style="font-size:11.5px;">${settings}</span></span>
+      <span class="right" style="font-size:12px;">${span}</span>
+    </div>`;
+  }).join('');
+  return `<div class="card">
+    <h3 style="margin-bottom:4px;">Training history</h3>
+    <p class="muted" style="font-size:11.5px;margin:0 0 8px;">What was trained when, as recorded at each sync or import — the calibration replays these.</p>
+    ${rows}
+  </div>`;
 }
 
 function minutesToggle(data) {
@@ -249,7 +311,8 @@ function render(data) {
       </div>
     <div class="halfway"></div>`
     + soonSection(data)
-    + boardSection(data);
+    + boardSection(data)
+    + `<div class="grid cols-2" style="margin-top:16px;">${calibrationSection(data)}${historySection(data)}</div>`;
 
   document.getElementById('minutesToggle').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-minutes]');

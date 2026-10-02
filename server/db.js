@@ -141,7 +141,49 @@ const MIGRATIONS = [
       ensureColumn('player_snapshots', 'last_match_date', 'TEXT');
     },
   },
+  {
+    // What was trained when (services/trainingLog.js) plus each snapshot's
+    // position, so the training model can be calibrated against the
+    // level-ups that actually happened under known conditions.
+    name: '002_training_log',
+    up() {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS training_log (
+          log_date         TEXT PRIMARY KEY,
+          training_type_id INTEGER,
+          skill_key        TEXT,
+          type_label       TEXT,
+          intensity_pct    INTEGER,
+          stamina_pct      INTEGER,
+          coach_level      INTEGER,
+          assistant_levels INTEGER,
+          source           TEXT
+        )
+      `);
+      ensureColumn('player_snapshots', 'position_code', 'TEXT');
+      // Seed with the one thing an existing install already knows: the
+      // current focus and when it was (last) reported.
+      const typeId = getSetting('training_focus_type_id');
+      const setAt = getSetting('training_focus_set_at');
+      if (typeId != null && setAt) {
+        db.prepare(`INSERT OR IGNORE INTO training_log
+          (log_date, training_type_id, skill_key, type_label, intensity_pct, stamina_pct, coach_level, assistant_levels, source)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+          setAt.slice(0, 10), Number(typeId), getSetting('training_focus_skill'), getSetting('training_focus_type_label'),
+          numOrNull(getSetting('training_focus_intensity_pct')), numOrNull(getSetting('training_focus_stamina_pct')),
+          numOrNull(getSetting('coach_skill_level')), numOrNull(getSetting('assistant_levels')),
+          getSetting('training_focus_source'),
+        );
+      }
+    },
+  },
 ];
+
+function numOrNull(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
 
 db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT)`);
 const appliedMigrations = new Set(db.prepare('SELECT name FROM schema_migrations').all().map((r) => r.name));
