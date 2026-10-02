@@ -113,14 +113,20 @@ function reachSection(data) {
   </div>`;
 }
 
+function progressTitle(p) {
+  return p.bankedPct > p.progressPct
+    ? `Model banked ~${p.bankedPct}%, capped to ~${p.progressPct}% by the weeks actually tracked at this level in this position.`
+    : 'Modeled progress toward the next level, checked against the tracked history.';
+}
+
 function soonSection(data) {
   const soon = data.players.filter((p) => p.levelUpSoon);
   if (!soon.length) {
     return `<div class="card">
       <h3 style="margin-bottom:6px;">Closest to a level-up</h3>
       <p class="muted" style="font-size:13px;margin:0;">
-        Nobody is modeled to level up within ${data.soonWeeks} weeks${minutesMode === 'own' ? ' in their own position' : ''}.
-        ${minutesMode === 'own' ? 'Try "If fielded to train" above to see who would, if you played them where this training lands.' : ''}
+        Nobody in a full- or half-trained position is modeled to level up within ${data.soonWeeks} weeks.
+        ${minutesMode === 'own' ? 'Try "If fielded to train" above to see whether full minutes there would get someone over the line.' : ''}
       </p>
     </div>`;
   }
@@ -140,7 +146,7 @@ function soonSection(data) {
       <div class="meter-track"><div class="meter-fill" style="width:${Math.min(100, p.progressPct)}%"></div></div>
       <div class="stats-row">
         <div>Est. to next level<br><b>~${p.weeksLow}–${p.weeksHigh} wk</b></div>
-        <div>Banked<br><b>~${p.progressPct}%</b></div>
+        <div title="${progressTitle(p)}">Progress<br><b>~${p.progressPct}%</b></div>
       </div>
     </a>`).join('');
 
@@ -162,7 +168,7 @@ function boardSection(data) {
       <td>${p.ageYears ?? '—'}</td>
       <td>${p.levelName ?? '—'} (${p.level ?? '—'})</td>
       <td style="font-family:var(--sb-font-body);">${tierChip(p)}</td>
-      <td>${p.status === 'training' ? `~${p.progressPct}%` : '<span class="muted">—</span>'}</td>
+      <td>${p.status === 'training' ? `<span title="${progressTitle(p)}">~${p.progressPct}%</span>` : '<span class="muted">—</span>'}</td>
       <td>${modeledCell(p)}</td>
       <td>${observedCell(p.observed)}</td>
     </tr>`).join('');
@@ -176,7 +182,7 @@ function boardSection(data) {
     <table class="wf-table">
       <thead><tr>
         <th>Player</th><th>Pos</th><th>Age</th><th>${data.focus.skillLabel}</th>
-        <th>Training reach</th><th>Banked</th><th>Est. next level</th><th>Observed</th>
+        <th>Training reach</th><th>Progress</th><th>Est. next level</th><th>Observed</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>

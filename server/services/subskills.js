@@ -6,7 +6,9 @@
 // time CHPP confirms an actual integer level change.
 //
 // Rules:
-// - Only the currently trained skill accumulates gains.
+// - Only the currently trained skill accumulates gains, scaled by how much
+//   of the training the player's position actually receives (full / half /
+//   trickle / none) — a forward doesn't bank Playmaking training at 100%.
 // - Any skill with an existing tracked row decays by the modeled age-drop
 //   when it isn't the one being trained (past its age threshold).
 // - A confirmed integer level change (up OR down) resets the fraction —
@@ -27,6 +29,9 @@ const upsertRow = db.prepare(`
     sub_value = excluded.sub_value, anchored_level = excluded.anchored_level, updated_at = excluded.updated_at
 `);
 const getAllForPlayer = db.prepare('SELECT * FROM player_subskills WHERE player_id = ?');
+// Callers upsert the player rows before running the bookkeeping, so the
+// position here is this sync's.
+const getPosition = db.prepare('SELECT position_code FROM players WHERE player_id = ?');
 
 function clamp(v) {
   return Math.min(0.99, Math.max(-0.99, v));
@@ -76,7 +81,9 @@ function updateSubskills(players, focus, context = {}, nowIso = new Date().toISO
 
       let delta = 0;
       if (isTrained) {
-        const gain = schum.weeklyGain({
+        // Unknown position → no gain banked rather than assuming full minutes.
+        const { timeFactor } = schum.positionTimeFactor(focus.trainingTypeId, getPosition.get(p.playerId)?.position_code);
+        const gain = timeFactor ? schum.weeklyGain({
           skillLevel: currentLevel,
           trainingTypeId: focus.trainingTypeId,
           ageYears: p.ageYears,
@@ -84,7 +91,8 @@ function updateSubskills(players, focus, context = {}, nowIso = new Date().toISO
           staminaPct: focus.staminaPct,
           coachLevel: context.coachLevel,
           assistantLevels: context.assistantLevels,
-        });
+          timeFactor,
+        }) : null;
         if (gain) {
           delta = gain.gainPerWeek - schum.weeklyDrop({ skillLevel: currentLevel, ageYears: p.ageYears, skillKey, isTrained: true });
         }

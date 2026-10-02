@@ -52,6 +52,36 @@ function readFocus() {
   };
 }
 
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Weeks the player has demonstrably been on `level` under the current focus:
+ * from the first snapshot of their latest unbroken run at that level (or the
+ * focus change, if later) until now. Null without any snapshot at that level.
+ * It undercounts when tracking began mid-level — the safe direction for a cap.
+ */
+function weeksAtLevel(history, skillKey, level, sinceDate) {
+  let start = null;
+  for (let i = history.length - 1; i >= 0 && history[i][skillKey] === level; i--) {
+    start = history[i].snapshot_date;
+  }
+  if (start == null) return null;
+  if (sinceDate && sinceDate > start) start = sinceDate;
+  return Math.max(0, (Date.now() - new Date(start)) / MS_PER_WEEK);
+}
+
+/**
+ * Only players whose own position gets the full or half training qualify —
+ * a trickle-only player is never realistically "about to level up" — and an
+ * observed level-up pace that says otherwise overrules the model.
+ */
+function isLevelUpSoon(tier, modeled, observed) {
+  if (tier !== 'full' && tier !== 'partly') return false;
+  if (modeled?.status !== 'ok' || modeled.low > SOON_WEEKS) return false;
+  if (observed?.status === 'training' && observed.low > SOON_WEEKS) return false;
+  return true;
+}
+
 function rankOf(row) {
   if (row.status === 'training') return 0;
   if (row.status === 'decay_exceeds_gain') return 1;
@@ -102,7 +132,28 @@ function buildTrainingBoard({ assumeFullMinutes = false } = {}) {
     // Banked progress only counts while it's still anchored to the level the
     // player is actually on (a confirmed level change resets it).
     const sub = getSubskill(p.player_id, focus.skillKey);
-    const subProgress = sub && sub.anchored_level === level ? Math.max(0, sub.sub_value) : 0;
+    const bankedProgress = sub && sub.anchored_level === level ? Math.max(0, sub.sub_value) : 0;
+
+    // The banked figure is a running model total and can drift (it used to
+    // credit every position at 100%), so it's capped by what the tracked
+    // history allows: weeks actually spent at this level under this focus,
+    // times the net gain the player's *own* position earns. The cap uses the
+    // real position even in the "fielded to train" view — that view is about
+    // the future, not about what was banked.
+    const history = historyOf.get(p.player_id) ?? [];
+    let historyProgress = null;
+    if (focus.typeId != null && posFit.timeFactor != null) {
+      const weeks = weeksAtLevel(history, focus.skillKey, level, focus.setAt);
+      const actual = posFit.timeFactor > 0 ? schum.modeledEta({
+        skillLevel: level, trainingTypeId: focus.typeId, ageYears: p.age_years,
+        intensityPct: focus.intensityPct, staminaPct: focus.staminaPct,
+        coachLevel: focus.coachSkillLevel, assistantLevels: focus.assistantLevels,
+        skillKey: focus.skillKey, timeFactor: posFit.timeFactor,
+      }) : null;
+      const net = actual?.status === 'ok' ? actual.gainPerWeek : 0;
+      if (weeks != null) historyProgress = Math.min(0.99, weeks * net);
+    }
+    const subProgress = historyProgress != null ? Math.min(bankedProgress, historyProgress) : bankedProgress;
 
     let modeled = null;
     if (focus.typeId != null && timeFactor != null && timeFactor > 0) {
@@ -120,7 +171,7 @@ function buildTrainingBoard({ assumeFullMinutes = false } = {}) {
       });
     }
 
-    const observed = estimateTrainingEta(historyOf.get(p.player_id) ?? [], focus.skillKey, {
+    const observed = estimateTrainingEta(history, focus.skillKey, {
       isTrained: true,
       sinceDate: focus.setAt,
       ageYears: p.age_years,
@@ -155,7 +206,8 @@ function buildTrainingBoard({ assumeFullMinutes = false } = {}) {
       dropPerWeek: modeled?.dropPerWeek ?? null,
       assumptions: modeled?.assumptions ?? [],
       observed,
-      levelUpSoon: modeled?.status === 'ok' && modeled.low <= SOON_WEEKS,
+      bankedPct: Math.round(bankedProgress * 100),
+      levelUpSoon: isLevelUpSoon(posFit.tier, modeled, observed),
     };
   });
 
