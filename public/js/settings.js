@@ -141,7 +141,7 @@ function renderCsvCard() {
       <a href="/api/csv/template">download our simpler template ↓</a> to type a squad by hand.
       <b>Each import fully replaces the squad</b>: columns left out are blanked, not merged.
     </p>
-    ${isCsvSourced ? `
+    ${isCsvSourced && CHPP_ENABLED ? `
       <div class="banner info" style="margin-bottom:10px;">
         Showing CSV-imported data for "<b>${status.teamName || 'your squad'}</b>". Connecting to Hattrick (under
         Settings below) would replace it with your real, synced squad.
@@ -389,12 +389,16 @@ async function load() {
     ]);
     schedule = scheduleRes.schedule;
     trainingTypes = typesRes.types;
-    renderConnectCard();
     renderCsvCard();
-    renderScheduleCard();
     renderAdvisorCard();
+    if (CHPP_ENABLED) {
+      renderConnectCard();
+      renderScheduleCard();
+    }
+    connectCard.hidden = !CHPP_ENABLED;
+    scheduleCard.hidden = !CHPP_ENABLED;
   } catch (err) {
-    connectCard.innerHTML = `<div class="banner error">${err.message}</div>`;
+    csvCard.innerHTML = `<div class="banner error">${err.message}</div>`;
   }
 }
 

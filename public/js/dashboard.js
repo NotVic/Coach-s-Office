@@ -5,12 +5,17 @@ const syncBtn = document.getElementById('syncBtn');
 let currentFilter = 'ALL';
 
 function notConnectedState() {
-  content.innerHTML = `<div class="empty-state">
-    <b>No CHPP connection yet</b>
-    Connect your Hattrick account to load your squad. <a href="/settings.html">Go to Settings →</a>
-  </div>`;
-  pageSub.textContent = 'Not connected';
-  syncBtn.disabled = true;
+  content.innerHTML = CHPP_ENABLED
+    ? `<div class="empty-state">
+      <b>No CHPP connection yet</b>
+      Connect your Hattrick account to load your squad. <a href="/settings.html">Go to Settings →</a>
+    </div>`
+    : `<div class="empty-state">
+      <b>No squad data yet</b>
+      Upload your Hattrick players export under <a href="/settings.html">Settings → Data upload</a>.
+    </div>`;
+  pageSub.textContent = CHPP_ENABLED ? 'Not connected' : 'No data yet';
+  syncBtn.disabled = CHPP_ENABLED;
 }
 
 function renderStatBar(data) {
@@ -46,7 +51,7 @@ function renderCharts(data) {
 
   return `<div class="grid cols-4">
     <div class="card chart-card">
-      <div class="card-head"><h3>Team TSI</h3><span class="muted" style="font-size:12px">trend since connecting</span></div>
+      <div class="card-head"><h3>Team TSI</h3><span class="muted" style="font-size:12px">trend over tracked history</span></div>
       <div class="plot">${Charts.lineChart(tsiPoints, { color: 'var(--sb-accent)' })}</div>
     </div>
     <div class="card chart-card">
@@ -123,7 +128,7 @@ function renderInsightRow(data) {
       <div class="card-head"><h3>${netTitle}</h3><span class="muted" style="font-size:12px;">${netCaption}</span></div>
       ${hasNetData
         ? `<div class="plot">${Charts.divergingBarChart(netPoints)}</div>`
-        : `<p class="muted" style="font-size:12.5px;margin:0;">Needs two imports with your cash balance filled in (Settings → CSV import), or a Hattrick connection.</p>`}
+        : `<p class="muted" style="font-size:12.5px;margin:0;">Needs two imports with your cash balance filled in (Settings → Data upload).</p>`}
     </div>
   </div>`;
 }
@@ -181,7 +186,7 @@ function wireFilter(data) {
 }
 
 function csvSourceBanner(data) {
-  if (data.dataSource !== 'csv') return '';
+  if (data.dataSource !== 'csv' || !CHPP_ENABLED) return '';
   return `<div class="banner info" style="margin-bottom:16px;">
     This is CSV-imported data, not a live Hattrick connection — training ETAs and match ratings won't
     accumulate history until you either re-import periodically or connect via CHPP.
@@ -203,10 +208,11 @@ async function load() {
     const data = await apiGet('/api/dashboard');
     if (!data.connected) return notConnectedState();
     currentDataSource = data.dataSource;
-    const sourceNote = data.dataSource === 'csv' ? ' · CSV import' : '';
-    pageSub.textContent = `${data.teamName || 'Your team'} · last synced ${data.lastSyncAt ? new Date(data.lastSyncAt).toLocaleString() : 'never'}${sourceNote}`;
+    const sourceNote = data.dataSource === 'csv' && CHPP_ENABLED ? ' · CSV import' : '';
+    const when = data.lastSyncAt ? new Date(data.lastSyncAt).toLocaleString() : 'never';
+    pageSub.textContent = `${data.teamName || 'Your team'} · last ${data.dataSource === 'csv' ? 'import' : 'synced'} ${when}${sourceNote}`;
     syncBtn.disabled = false;
-    syncBtn.textContent = data.dataSource === 'csv' ? '↻ Manage in Settings' : '↻ Sync now';
+    syncBtn.textContent = data.dataSource === 'csv' ? '↑ Upload data' : '↻ Sync now';
     render(data);
   } catch (err) {
     content.innerHTML = `<div class="banner error">${err.message}</div>`;
@@ -214,7 +220,7 @@ async function load() {
 }
 
 syncBtn.addEventListener('click', async () => {
-  if (currentDataSource === 'csv') {
+  if (currentDataSource !== 'chpp' || !CHPP_ENABLED) {
     location.href = '/settings.html';
     return;
   }

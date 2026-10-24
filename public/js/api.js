@@ -1,3 +1,8 @@
+// The CHPP (live Hattrick connection) UI is switched off: the app runs on
+// CSV uploads. The server side is untouched, so setting this to true brings
+// back the connect card, sync schedule and "Sync now" button as they were.
+const CHPP_ENABLED = false;
+
 // Small fetch wrapper — every endpoint returns JSON, errors come back as
 // { error: "message" } with a non-2xx status.
 // Attaches the full response body to the thrown Error (as `.data`) so a

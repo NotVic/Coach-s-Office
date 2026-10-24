@@ -101,7 +101,9 @@ const Charts = (() => {
       const h = (Math.abs(b.value) / maxAbs) * (plotH / 2);
       const positive = b.value >= 0;
       const by = positive ? zeroY - h : zeroY;
-      const color = positive ? 'var(--sb-div-pos-2)' : 'var(--sb-div-neg-2)';
+      // Money in is good news: accent green up, critical red down. (The
+      // --sb-div-* scale is for neutral two-sided data, and its "pos" side is red.)
+      const color = positive ? 'var(--sb-accent)' : 'var(--sb-status-critical)';
       return `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(h, 1).toFixed(1)}" rx="3" fill="${color}"><title>${esc(b.label)}: ${valueFormat(b.value)}</title></rect>` +
         `<text x="${(bx + barW / 2).toFixed(1)}" y="${height - 6}" text-anchor="middle">${esc(b.label)}</text>`;
     }).join('');

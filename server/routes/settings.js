@@ -1,6 +1,7 @@
 const express = require('express');
 const { getSchedule, setSchedule } = require('../services/scheduler');
 const { TRAINING_TYPES } = require('../chpp/parse');
+const { YOUTH_TRAINING_TYPES, YOUTH_TRAINING_ORDER } = require('../services/youthTraining');
 
 const router = express.Router();
 
@@ -14,6 +15,14 @@ router.get('/schedule', (req, res) => {
 router.get('/training-types', (req, res) => {
   res.json({
     types: Object.entries(TRAINING_TYPES).map(([id, t]) => ({ id: Number(id), label: t.label, skillKey: t.skillKey })),
+  });
+});
+
+// The youth academy has its own training menu (incl. "Individual"), grouped
+// the way Hattrick's youth page shows it.
+router.get('/youth-training-types', (req, res) => {
+  res.json({
+    types: YOUTH_TRAINING_ORDER.map((id) => ({ id, label: YOUTH_TRAINING_TYPES[id].label, group: YOUTH_TRAINING_TYPES[id].group })),
   });
 });
 

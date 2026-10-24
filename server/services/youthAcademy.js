@@ -10,9 +10,11 @@
 // "days until you can promote" are as of the import date, so they're
 // rolled forward by the days elapsed since.
 const { db } = require('../db');
-const { skillLevelName, derivePositionLine, TRAINING_TYPES } = require('../chpp/parse');
+const { skillLevelName, derivePositionLine } = require('../chpp/parse');
 const { YOUTH_SKILLS } = require('./importYouthCsv');
-const { computeYouthCalibration, predictPlayer, getYouthTrainingLog, historyByPlayer } = require('./youthTraining');
+const {
+  YOUTH_TRAINING_TYPES, computeYouthCalibration, predictPlayer, trainedSlots, getYouthTrainingLog, historyByPlayer,
+} = require('./youthTraining');
 
 const DAYS_PER_YEAR = 112;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -29,9 +31,8 @@ function daysSince(isoDate, now) {
 }
 
 function trainingType(id) {
-  const type = id != null ? TRAINING_TYPES[id] : null;
-  // Youth skill keys have no "skill_" prefix (see importYouthCsv.js).
-  return type ? { typeId: id, label: type.label, skillKey: type.skillKey.replace('skill_', '') } : null;
+  const type = id != null ? YOUTH_TRAINING_TYPES[id] : null;
+  return type ? { typeId: id, label: type.label, group: type.group, skillKeys: type.skills, individual: Boolean(type.individual) } : null;
 }
 
 /**
@@ -54,14 +55,22 @@ function readYouthTraining() {
     secondary,
     reportedOn: latest.log_date,
     since,
-    // Training the same skill twice mostly wastes the secondary slot.
-    sameSkill: Boolean(primary && secondary && primary.skillKey === secondary.skillKey),
+    // The raw log row, as the training model consumes it.
+    row: latest,
+    // Repeating the primary type as secondary halves the secondary slot.
+    sameType: Boolean(primary && secondary && primary.typeId === secondary.typeId),
   };
 }
 
+/**
+ * Academy-wide: which slot trains this skill. Individual training depends on
+ * each player's position, so it isn't marked here (see skillsOf per player).
+ */
 function trainedAs(key, training) {
-  if (training?.primary?.skillKey === key) return 'primary';
-  if (training?.secondary?.skillKey === key) return 'secondary';
+  for (const slot of ['primary', 'secondary']) {
+    const t = training?.[slot];
+    if (t && !t.individual && t.skillKeys.includes(key)) return slot;
+  }
   return null;
 }
 
@@ -72,7 +81,9 @@ function skillsOf(row, training) {
     return {
       key,
       label: SKILL_LABEL[key],
-      trained: trainedAs(key, training),
+      // Per player: individual training reaches only the skills that fit
+      // the position played.
+      trained: training ? trainedSlots(training.row, key, row.last_match_position)[0] ?? null : null,
       current: cur,
       potential: max,
       currentName: skillLevelName(cur),
@@ -149,15 +160,19 @@ function trainingAdvice(training, headroom) {
   const notes = [];
   const levelsOf = (skillKey) => headroom.find((h) => h.key === skillKey)?.levels ?? 0;
   const top = headroom[0];
-  if (training.sameSkill) {
-    notes.push(`Primary and secondary training both train ${SKILL_LABEL[training.primary.skillKey]}; the secondary slot adds little that way. Pick a different skill for it.`);
+  const individual = training.primary?.individual || training.secondary?.individual;
+  if (training.sameType) {
+    notes.push(`Primary and secondary are the same training (${training.primary.label}); a repeated secondary only counts half. Pick a different one for it.`);
   }
   for (const [slot, t] of [['Primary', training.primary], ['Secondary', training.secondary]]) {
-    if (t && levelsOf(t.skillKey) === 0) {
-      notes.push(`${slot} training (${t.label}) has no known headroom left among players with a decent ceiling in ${SKILL_LABEL[t.skillKey]}.`);
+    if (t && !t.individual && t.skillKeys.every((k) => levelsOf(k) === 0)) {
+      notes.push(`${slot} training (${t.label}) has no known headroom left among players with a decent ceiling in ${t.skillKeys.map((k) => SKILL_LABEL[k]).join(' / ')}.`);
     }
   }
-  if (top && top.levels > 0 && !top.trainedAs) {
+  if (individual) {
+    notes.push('Individual training picks a skill per player that fits the position played, so field players where their headroom is.');
+  }
+  if (top && top.levels > 0 && !top.trainedAs && !individual) {
     notes.push(`The most known headroom is in ${top.label} (+${top.levels} levels over ${top.players.length} player${top.players.length === 1 ? '' : 's'}), which isn't being trained.`);
   }
   if (!notes.length) notes.push('Your youth training lines up with where the known headroom is.');
@@ -223,7 +238,7 @@ function buildYouthAcademy({ now = Date.now() } = {}) {
     p.outlook = isTraining
       ? predictPlayer(
         { skills, ageYears: ageTotal / DAYS_PER_YEAR, position: row.last_match_position, daysUntilAgeOut: p.daysUntilAgeOut },
-        snapshots, log.at(-1), calibration.factor, training.since, now,
+        snapshots, training.row, calibration.factor, training.since, now,
       )
       : [];
     // The slowest trained skill decides when the player is "done" here.

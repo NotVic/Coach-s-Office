@@ -28,10 +28,13 @@ API and helps you answer the questions a manager checks every week:
    rule-based call (promote / keep training / low ceiling) with its reason.
    Academy-wide: where youth training still pays off per skill, and what
    leveled up or got revealed since the previous import. The upload form
-   also takes the academy's primary/secondary training, which feeds a
-   **self-learning youth training model**: Schum's formula as a starting
-   point (secondary training at ~75%, last match position for how much
-   training a player gets), corrected by a factor learned from this
+   also takes the academy's primary/secondary training (Hattrick's youth
+   menu: focused, extended, combined and Individual training), which feeds
+   a **self-learning youth training model**: the community youth formula
+   as implemented in Hattrick Organizer as a starting point (secondary
+   training at 2/3, halved again when it repeats the primary; the last
+   match position for how much training a player gets; Individual training
+   spread over the skills that fit that position), corrected by a factor learned from this
    academy's own observed level-ups the same way the senior model is
    calibrated. It estimates weeks to the next level and to the known
    potential per trained skill, and whether that lands before age 19.
@@ -92,6 +95,12 @@ npm run dev                # http://localhost:3000
 The SQLite database is created under `./data/` (gitignored).
 
 ## Connect your Hattrick account
+
+> **Currently switched off in the UI.** This deployment runs on CSV uploads
+> (CHPP certification isn't expected). The connect card, sync schedule and
+> "Sync now" button are hidden by `CHPP_ENABLED = false` in
+> [public/js/api.js](public/js/api.js); the server side is unchanged, so
+> flipping that flag brings the steps below back.
 
 1. Register a CHPP application at
    [hattrick.org/en/Chpp](https://www.hattrick.org/en/Chpp/) to get a

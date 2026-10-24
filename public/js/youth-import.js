@@ -3,10 +3,13 @@
 // youth export doesn't include. Prefilled from the last import, since the
 // training rarely changes between weekly uploads.
 async function mountYouthImportForm(container, { onImported } = {}) {
-  const [{ types }, youth] = await Promise.all([apiGet('/api/settings/training-types'), apiGet('/api/youth')]);
+  const [{ types }, youth] = await Promise.all([apiGet('/api/settings/youth-training-types'), apiGet('/api/youth')]);
   const current = youth.training || {};
+  // Grouped like Hattrick's own youth training dropdown.
+  const groups = [...new Set(types.map((t) => t.group))];
   const options = (selectedId) => `<option value="">— not set —</option>`
-    + types.map((t) => `<option value="${t.id}" ${t.id === selectedId ? 'selected' : ''}>${t.label}</option>`).join('');
+    + groups.map((g) => `<optgroup label="${g}">${types.filter((t) => t.group === g)
+      .map((t) => `<option value="${t.id}" ${t.id === selectedId ? 'selected' : ''}>${t.label}</option>`).join('')}</optgroup>`).join('');
 
   container.innerHTML = `
     <div class="youthImportMsg"></div>

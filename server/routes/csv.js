@@ -1,6 +1,7 @@
 const express = require('express');
 const { importSquadCsv } = require('../services/importCsv');
 const { importYouthCsv } = require('../services/importYouthCsv');
+const { YOUTH_TRAINING_TYPES } = require('../services/youthTraining');
 const { exportSquadCsv, templateCsv } = require('../services/exportCsv');
 const { TRAINING_TYPES } = require('../chpp/parse');
 const { db, getSetting } = require('../db');
@@ -113,8 +114,8 @@ router.post('/youth-import', express.json({ limit: '2mb' }), (req, res) => {
   const training = {};
   for (const [field, raw, label] of [['primaryTypeId', primaryTypeId, 'Primary'], ['secondaryTypeId', secondaryTypeId, 'Secondary']]) {
     const id = numberOrNull(raw);
-    if (id === undefined || (id != null && !TRAINING_TYPES[id])) {
-      return res.status(400).json({ error: `${label} training "${raw}" isn't a recognized Hattrick training type.` });
+    if (id === undefined || (id != null && !YOUTH_TRAINING_TYPES[id])) {
+      return res.status(400).json({ error: `${label} training "${raw}" isn't a recognized Hattrick youth training.` });
     }
     training[field] = id;
   }

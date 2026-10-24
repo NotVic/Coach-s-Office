@@ -95,13 +95,14 @@ function changesSection(data) {
 function outlookCell(p) {
   if (!p.outlook.length) return '<span class="muted">—</span>';
   return p.outlook.map((o) => {
-    const tag = `${SHORT[o.skillKey]}${o.slot === 'primary' ? '●' : '○'}`;
+    const tag = `${SHORT[o.skillKey]}${o.slots.map((s) => (s === 'primary' ? '●' : '○')).join('')}`;
     if (o.status === 'maxed') return `<div><span class="muted">${tag}</span> maxed</div>`;
     if (o.status !== 'ok') return `<div><span class="muted">${tag}</span> <span class="muted" title="Last match position gets no training from this type">not reached</span></div>`;
     const title = [
       `${o.skill} ${o.current} → ${o.current + 1}: ~${o.weeksPerLevel} weeks per level`,
       o.bankedPct != null ? `~${o.bankedPct}% banked since the last level-up` : 'progress since the last level-up unknown, so the range is wide',
       o.observed ? `observed in this player's own history: ~${o.observed.low}–${o.observed.high} wk` : null,
+      `position reach: ${o.tiers.join(', ')}`,
       ...o.assumptions,
     ].filter(Boolean).join('\n');
     const pot = o.toPotential
@@ -118,8 +119,8 @@ function modelSection(data) {
   if (!c || !c.runs) {
     return `<div class="card" style="margin-top:16px;">${head}</h3>
       <p class="muted" style="font-size:12.5px;margin:0;">
-        Not calibrated yet: estimates use the senior-squad training formula as a starting point, so treat them as
-        rough. The model learns from your own academy as soon as a player levels up <b>twice</b> in a trained skill
+        Not calibrated yet: estimates use the community youth-training formula (as in Hattrick Organizer) as a
+        starting point, so treat them as rough. The model learns from your own academy as soon as a player levels up <b>twice</b> in a trained skill
         between imports (the first level-up only marks the start). Keep importing weekly, with the training filled in.
       </p></div>`;
   }
@@ -130,7 +131,7 @@ function modelSection(data) {
       ? `Your youth players train about ${pct}% faster than the starting formula predicts; estimates are shortened to match.`
       : `Your youth players train about ${-pct}% slower than the starting formula predicts; estimates are lengthened to match.`;
   const runs = c.recent.map((r) => `<div class="player-row">
-      <span>${esc(r.name)} · ${esc(r.skill)} <span class="muted" style="font-size:11.5px;">${r.slot} · ${formatDate(r.from)} → ${formatDate(r.to)}</span></span>
+      <span>${esc(r.name)} · ${esc(r.skill)} <span class="muted" style="font-size:11.5px;">${formatDate(r.from)} → ${formatDate(r.to)}</span></span>
       <span class="right">+${r.levels} seen · ${r.modeled} modeled</span>
     </div>`).join('');
   return `<div class="card" style="margin-top:16px;">

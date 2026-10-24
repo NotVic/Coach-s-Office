@@ -281,8 +281,8 @@ function render(data) {
   }
   if (!data.hasFocus) {
     content.innerHTML = `<div class="empty-state"><b>No training focus set</b>
-      Tell Coach's Office what your club is training — it comes from CHPP automatically once connected, or from the
-      "Training focus" section of the CSV import. <a href="/settings.html">Go to Settings →</a></div>`;
+      Tell Coach's Office what your club is training: fill in the "Training focus" section when you upload
+      your squad. <a href="/settings.html">Go to Settings → Data upload</a></div>`;
     pageSub.textContent = 'Training focus unknown';
     return;
   }
