@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coach's Office — Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body data-page="advisor">
+<div class="app-shell">
+<nav class="nav" id="nav"></nav>
+<main class="main" style="max-width:860px;">
+
+  <div class="page-head">
+    <div><h1>Assistant</h1><div class="sub">Ask about your squad's history and get suggestions. Read-only: it can look things up, not change them.</div></div>
+    <button class="pill-btn" id="newChatBtn" hidden>New conversation</button>
+  </div>
+
+  <div id="setupBanner"></div>
+
+  <div class="quick-prompts" id="quickPrompts"></div>
+
+  <div class="chat-log" id="chatLog"></div>
+
+  <form class="chat-form card" id="chatForm">
+    <textarea id="chatInput" rows="2" placeholder="Ask anything, e.g. &quot;Who should I sell before the end of the season?&quot;" maxlength="4000"></textarea>
+    <div class="chat-form-row">
+      <span class="caption" id="chatStatus"></span>
+      <button type="button" class="pill-btn" id="stopBtn" hidden>Stop</button>
+      <button type="submit" class="pill-btn primary" id="sendBtn">Ask</button>
+    </div>
+  </form>
+
+</main>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/advisor.js"></script>
+</body>
+</html>

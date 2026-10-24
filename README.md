@@ -19,6 +19,13 @@ API and helps you answer the questions a manager checks every week:
    field them where this training lands".
 4. **What should I do next?** — next-match prep (opponent snapshot, a
    suggested XI, availability) and a weekly digest of what actually changed.
+5. **What do you make of all this?** — an optional Assistant page backed by
+   Claude (your own Anthropic API key). Ask in plain language, or use the
+   quick prompts (weekly advice, is training working, who to sell, next
+   match, finances); it looks up the squad, per-player history, team
+   finances, training log and next fixture through read-only tools and
+   answers with suggestions. It never sees the stored CHPP tokens or API
+   key, and it can't change anything.
 
 It's a companion, not a replacement for hattrick.org — read-only in v1, no
 lineup or training-order changes.
@@ -161,7 +168,8 @@ only relevant when running outside Docker), `HOST_PORT` (docker-compose
 only — which host port maps to the container, in case 3000 is taken),
 `DATA_DIR`, `APP_PASSWORD` (optional shared-password gate), and
 `CHPP_CONSUMER_KEY` / `CHPP_CONSUMER_SECRET` (optional pre-fill; can also be
-entered in Settings).
+entered in Settings), and `ANTHROPIC_API_KEY` (optional, for the Assistant
+page; can also be entered in Settings, where a saved key takes precedence).
 
 ## Troubleshooting
 
