@@ -1,5 +1,5 @@
-// The youth-CSV upload form, shared by the Youth Academy page and Settings:
-// the file plus the academy's primary/secondary training, which Hattrick's
+// The youth-CSV upload form on Settings → Data upload: the file plus the
+// academy's primary/secondary training, which Hattrick's
 // youth export doesn't include. Prefilled from the last import, since the
 // training rarely changes between weekly uploads.
 async function mountYouthImportForm(container, { onImported } = {}) {

@@ -1,6 +1,5 @@
 const content = document.getElementById('content');
 const pageSub = document.getElementById('pageSub');
-const importCard = document.getElementById('importCard');
 
 const SHORT = { keeper: 'GK', defending: 'DEF', playmaking: 'PM', winger: 'WG', passing: 'PS', scoring: 'SC', setpieces: 'SP' };
 
@@ -197,10 +196,10 @@ function tableSection(data) {
 function render(data) {
   if (!data.hasYouth) {
     pageSub.textContent = 'No youth players imported yet';
-    importCard.open = true;
     content.innerHTML = `<div class="empty-state"><b>No youth academy data yet</b>
-      Export your youth players from Hattrick as CSV (the youthplayers_….csv file) and use <b>Import youth CSV</b> above.
-      Re-import every week or so: each import is kept as a snapshot, so level-ups and newly revealed potentials show up here.</div>`;
+      Export your youth players from Hattrick as CSV (the youthplayers_….csv file) and upload it under
+      <a href="/settings.html">Settings → Data upload</a>. Re-import every week or so: each import is kept as a
+      snapshot, so level-ups and newly revealed potentials show up here.</div>`;
     return;
   }
   const t = data.training;
@@ -218,9 +217,5 @@ async function load() {
     content.innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
   }
 }
-
-mountYouthImportForm(document.getElementById('importForm'), { onImported: load }).catch((err) => {
-  document.getElementById('importForm').innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
-});
 
 load();

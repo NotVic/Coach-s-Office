@@ -135,20 +135,16 @@ async function disconnect() {
 function renderCsvCard() {
   const isCsvSourced = status.dataSource === 'csv';
   csvCard.innerHTML = `
-    <h3 style="margin-bottom:6px;">Squad data via CSV</h3>
+    <h3 style="margin-bottom:6px;">Senior squad</h3>
     <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 10px;">
-      Waiting on your CHPP keys, or just prefer a spreadsheet? Two ways in: upload a CSV export of your Hattrick
-      players directly (e.g. from Hattrick Organizer or a similar CHPP-based tool — Coach's Office recognizes
-      that column format automatically), or <a href="/api/csv/template">download our simpler template ↓</a> and
-      hand-type a squad from scratch. Either way it fills in the dashboard, player detail, and digest the same
-      way a real sync would. <b>Each import fully replaces the squad</b> — it isn't a partial patch, so a
-      re-import missing some columns blanks those out rather than merging. Match Prep still needs a real CHPP
-      connection regardless, since it needs live fixture and opponent data no CSV can provide.
+      Upload Hattrick's players export as-is (recognized automatically), or
+      <a href="/api/csv/template">download our simpler template ↓</a> to type a squad by hand.
+      <b>Each import fully replaces the squad</b>: columns left out are blanked, not merged.
     </p>
     ${isCsvSourced ? `
       <div class="banner info" style="margin-bottom:10px;">
-        Currently showing CSV-imported data for "<b>${status.teamName || 'your squad'}</b>", not a live Hattrick
-        connection. Connecting to Hattrick above will replace this with your real, synced squad.
+        Showing CSV-imported data for "<b>${status.teamName || 'your squad'}</b>". Connecting to Hattrick (under
+        Settings below) would replace it with your real, synced squad.
       </div>
     ` : ''}
     <div id="csvError"></div>
@@ -263,9 +259,9 @@ function renderScheduleCard() {
   scheduleCard.innerHTML = `
     <h3 style="margin-bottom:6px;">Sync schedule</h3>
     <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 12px;">
-      Hattrick's weekly processing time depends on your league's country bloc — set the day/time your training
-      and match results actually post (e.g. Belgium is training ~Friday 07:00, match results ~Sunday 16:00).
-      A manual "Sync now" is always available on the Dashboard too.
+      Only used with a Hattrick connection. Hattrick's weekly processing time depends on your league's country
+      bloc: set the day/time your training and match results actually post (e.g. Belgium is training ~Friday
+      07:00, match results ~Sunday 16:00). A manual "Sync now" is always available on the Dashboard too.
     </p>
     <div id="scheduleRows">${schedule.map(scheduleRowHtml).join('') || '<p class="muted" style="font-size:13px;">No scheduled syncs yet — add one below.</p>'}</div>
     <div style="display:flex;gap:8px;margin-top:8px;">

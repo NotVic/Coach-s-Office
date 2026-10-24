@@ -12,34 +12,46 @@
 <body data-page="settings">
 <div class="app-shell">
 <nav class="nav" id="nav"></nav>
-<main class="main" style="max-width:760px;">
+<main class="main" style="max-width:1200px;">
 
-  <div class="page-head"><div><h1>Settings</h1><div class="sub">Connect your Hattrick account and set your sync schedule.</div></div></div>
+  <div class="page-head"><div><h1>Settings</h1><div class="sub">Upload your weekly data, and configure the app.</div></div></div>
 
-  <div id="connectCard" class="card" style="margin-bottom:20px;">Loading…</div>
-  <div id="csvCard" class="card" style="margin-bottom:20px;">Loading…</div>
-  <div class="card" style="margin-bottom:20px;">
-    <h3 style="margin-bottom:6px;">Youth academy CSV</h3>
-    <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 12px;">
-      Upload Hattrick's youth-players export (<code>youthplayers_….csv</code>) as-is. It only touches the
-      <a href="/youth.html">Youth Academy</a> page, never your senior squad. Each import is kept as a snapshot, so
-      re-import weekly to track level-ups and newly revealed potentials.
-    </p>
-    <div id="youthImportForm">Loading…</div>
+  <!-- Data upload: what you do every week. -->
+  <div class="section-head">
+    <h2>Data upload</h2>
+    <span class="muted">Re-import weekly: every upload is kept as a snapshot, which is what the trends and training models learn from.</span>
   </div>
-  <div id="scheduleCard" class="card" style="margin-bottom:20px;">Loading…</div>
-  <div id="advisorCard" class="card" style="margin-bottom:20px;">Loading…</div>
+  <div class="settings-grid">
+    <div id="csvCard" class="card">Loading…</div>
+    <div class="card">
+      <h3 style="margin-bottom:6px;">Youth academy</h3>
+      <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 12px;">
+        Upload Hattrick's youth-players export (<code>youthplayers_….csv</code>) as-is, together with the academy's
+        current training. It only touches the <a href="/youth.html">Youth Academy</a> page, never your senior squad.
+      </p>
+      <div id="youthImportForm">Loading…</div>
+    </div>
+  </div>
 
-  <div class="card">
-    <h3 style="margin-bottom:8px;">About the estimates on this dashboard</h3>
-    <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 8px;">
-      Hattrick doesn't publish its training-speed or transfer-value formulas, and CHPP doesn't expose a player's
-      fractional progress toward their next skill level. Rather than guess at Hattrick's internal math, Coach's
-      Office estimates training ETAs from <em>this app's own tracked history</em> for each player, and shows
-      transfer value as a transparent, order-of-magnitude estimate based on TSI and age. Both are always shown
-      as a range with a <code>~</code>, never a confident single number — treat them as a starting point for your
-      own judgement.
-    </p>
+  <!-- Settings: set once, rarely changed. -->
+  <div class="section-head">
+    <h2>Settings</h2>
+  </div>
+  <div class="settings-grid">
+    <div id="connectCard" class="card">Loading…</div>
+    <div id="scheduleCard" class="card">Loading…</div>
+    <div id="advisorCard" class="card">Loading…</div>
+    <div class="card">
+      <h3 style="margin-bottom:8px;">About the estimates</h3>
+      <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 8px;">
+        Hattrick doesn't publish its training-speed or transfer-value formulas, and CHPP doesn't expose a player's
+        fractional progress toward their next skill level. Rather than guess at Hattrick's internal math, Coach's
+        Office estimates training ETAs from <em>this app's own tracked history</em> for each player, and shows
+        transfer value as a transparent, order-of-magnitude estimate based on TSI and age. Both are always shown
+        as a range with a <code>~</code>, never a confident single number: treat them as a starting point for your
+        own judgement.
+      </p>
+    </div>
   </div>
 
 </main>
