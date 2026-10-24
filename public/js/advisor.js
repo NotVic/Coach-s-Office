@@ -233,6 +233,10 @@ quickPrompts.addEventListener('click', (e) => {
       setupBanner.innerHTML = '<div class="banner info">Add your Anthropic API key in <a href="/settings.html">Settings</a> to use the assistant.</div>';
       sendBtn.disabled = true;
       quickPrompts.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+    } else if (new URLSearchParams(location.search).get('ask') === 'weekly') {
+      // Linked from the Weekly update's "this week's summary" after an import.
+      history.replaceState(null, '', location.pathname);
+      ask(QUICK_PROMPTS[0].text);
     }
   } catch (err) {
     setupBanner.innerHTML = `<div class="banner error">${escapeHtml(err.message)}</div>`;
