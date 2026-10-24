@@ -6,7 +6,19 @@ const router = express.Router();
 
 router.get('/status', (req, res) => {
   const source = advisor.keySource();
-  res.json({ configured: Boolean(source), source, model: advisor.MODEL });
+  res.json({
+    configured: Boolean(source),
+    source,
+    model: advisor.currentModel().id,
+    models: advisor.MODELS.map(({ id, label, note }) => ({ id, label, note })),
+  });
+});
+
+router.post('/model', express.json(), (req, res) => {
+  const model = String(req.body?.model || '');
+  if (!advisor.MODELS.some((m) => m.id === model)) return res.status(400).json({ error: `Unknown model "${model}".` });
+  advisor.setModel(model);
+  res.json({ ok: true, model });
 });
 
 // The key is checked against the API before it's stored, so a typo shows

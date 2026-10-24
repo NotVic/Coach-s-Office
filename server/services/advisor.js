@@ -6,7 +6,7 @@
 // Anthropic key live).
 const crypto = require('crypto');
 const Anthropic = require('@anthropic-ai/sdk');
-const { db, getSetting } = require('../db');
+const { db, getSetting, setSetting } = require('../db');
 const { computeRecentChanges } = require('./changes');
 const { buildTrainingBoard } = require('./trainingBoard');
 const { trainingPeriods } = require('./trainingLog');
@@ -15,7 +15,26 @@ const { buildMatchPrep } = require('./matchPrep');
 const { buildYouthAcademy } = require('./youthAcademy');
 const { skillLevelName } = require('../chpp/parse');
 
-const MODEL = 'claude-opus-5-5';
+// Models the manager can pick in Settings. A fixed list rather than a free
+// text field, because request options differ per model: server-side refusal
+// fallbacks (`fallbacks: 'default'`) exist for these except Haiku.
+const MODELS = [
+  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', note: 'recommended · $4 / $20 per million tokens in / out', fallbacks: true },
+  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', note: 'half the price · $2 / $10', fallbacks: true },
+  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', note: 'cheapest, lighter analysis · $0.10 / $0.50', fallbacks: false },
+  { id: 'claude-fable-5-1', label: 'Claude Fable 5.1', note: 'most capable, slower · $10 / $50', fallbacks: true },
+];
+const DEFAULT_MODEL = MODELS[0];
+
+function currentModel() {
+  const id = getSetting('advisor_model');
+  return MODELS.find((m) => m.id === id) || DEFAULT_MODEL;
+}
+
+function setModel(id) {
+  if (!MODELS.some((m) => m.id === id)) throw new Error(`Unknown model: ${id}`);
+  setSetting('advisor_model', id);
+}
 // Upper bound on model calls per user message, so a confused tool loop
 // can't run up the bill.
 const MAX_TURNS = 10;
@@ -270,19 +289,22 @@ async function chat(conv, userText, emit, signal) {
   if (!key) throw new Error('No Anthropic API key configured. Add one in Settings.');
 
   const client = new Anthropic({ apiKey: key });
+  // Read once per message, so a Settings change never switches model
+  // halfway through an answer. Switching between messages is fine: the API
+  // quietly drops thinking blocks the new model can't read.
+  const model = currentModel();
   const startLength = conv.messages.length;
   conv.messages.push({ role: 'user', content: userText });
 
   try {
     for (let turn = 0; turn < MAX_TURNS; turn += 1) {
       const stream = client.beta.messages.stream({
-        model: MODEL,
+        model: model.id,
         max_tokens: 64000,
         output_config: { effort: 'high' },
         // If a safety classifier declines, the API retries on a suitable
         // fallback model inside the same call instead of just stopping.
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
+        ...(model.fallbacks ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}),
         cache_control: { type: 'ephemeral' },
         system: SYSTEM_PROMPT,
         tools: API_TOOLS,
@@ -340,7 +362,7 @@ function describeError(err) {
 /** Cheap check that a key works, used when saving one in Settings. */
 async function verifyKey(key) {
   const client = new Anthropic({ apiKey: key, maxRetries: 0 });
-  await client.models.retrieve(MODEL);
+  await client.models.retrieve(currentModel().id);
 }
 
-module.exports = { chat, getConversation, describeError, verifyKey, keySource, MODEL, Anthropic };
+module.exports = { chat, getConversation, describeError, verifyKey, keySource, MODELS, currentModel, setModel, Anthropic };

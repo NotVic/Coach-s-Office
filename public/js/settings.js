@@ -337,17 +337,37 @@ function renderAdvisorCard() {
   advisorCard.innerHTML = `
     <h3 style="margin-bottom:6px;">Assistant (Claude API)</h3>
     <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 12px;">
-      The <a href="/advisor.html">Assistant</a> page uses your own Anthropic API key (model <code>${advisorStatus.model}</code>).
+      The <a href="/advisor.html">Assistant</a> page uses your own Anthropic API key.
       Questions and the squad data the assistant looks up are sent to Anthropic's API; usage is billed to your Anthropic account.
       ${configuredText}
     </p>
     <div id="advisorMsg"></div>
+    <div class="field"><label for="advisorModel">Model</label>
+      <select id="advisorModel">
+        ${advisorStatus.models.map((m) => `<option value="${m.id}" ${m.id === advisorStatus.model ? 'selected' : ''}>${m.label} (${m.note})</option>`).join('')}
+      </select>
+      <span class="hint">Saved as soon as you pick one; applies from the next question. Prices are per million tokens, input / output.</span>
+    </div>
     <div class="field"><label for="anthropicKey">Anthropic API key</label><input type="password" id="anthropicKey" autocomplete="off" placeholder="sk-ant-…"></div>
     <button class="pill-btn primary" id="saveAnthropicKeyBtn">Save key</button>
     ${advisorStatus.source === 'settings' ? '<button class="pill-btn" id="clearAnthropicKeyBtn" style="margin-left:8px;">Remove saved key</button>' : ''}
   `;
+  document.getElementById('advisorModel').addEventListener('change', saveAdvisorModel);
   document.getElementById('saveAnthropicKeyBtn').addEventListener('click', saveAnthropicKey);
   document.getElementById('clearAnthropicKeyBtn')?.addEventListener('click', () => updateAnthropicKey({ clear: true }, 'Saved key removed.'));
+}
+
+async function saveAdvisorModel(e) {
+  const msgEl = document.getElementById('advisorMsg');
+  const select = e.target;
+  try {
+    await apiPost('/api/advisor/model', { model: select.value });
+    advisorStatus.model = select.value;
+    msgEl.innerHTML = `<div class="banner good">Assistant now uses ${select.options[select.selectedIndex].text.replace(/ \(.*$/, '')}.</div>`;
+  } catch (err) {
+    select.value = advisorStatus.model;
+    msgEl.innerHTML = `<div class="banner error">${err.message}</div>`;
+  }
 }
 
 function saveAnthropicKey() {
