@@ -222,6 +222,9 @@ svg.chart .dot { fill: var(--sb-surface); stroke: var(--sb-accent); stroke-width
 .ytable td.yskill.maxed { color: var(--sb-status-good-text); background: rgba(12, 163, 12, .08); }
 .ymax { color: var(--sb-text-muted); font-size: 11px; }
 table.wf-table.ytable th.ytrained { color: var(--sb-accent); }
+.ytable td.yname { font-family: inherit; white-space: nowrap; }
+.ytable td.yname a { color: inherit; text-decoration: none; }
+.ytable td.yname a:hover { text-decoration: underline; }
 .ytable td.youtlook { white-space: nowrap; font-size: 11.5px; line-height: 1.6; }
 .ytable td.yskill.maxed .ymax { color: inherit; }
 .yheadroom { display: grid; grid-template-columns: 170px minmax(80px, 1fr) 36px 2fr; align-items: center; gap: 10px; font-size: 13px; margin-bottom: 8px; }

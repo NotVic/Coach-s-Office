@@ -144,20 +144,17 @@ function modelSection(data) {
 
 function tableSection(data) {
   const rows = data.players.map((p) => `<tr>
-    <td style="font-family:inherit;">
-      <b>${esc(p.name)}</b>${p.specialty ? ` <span class="chip gold">${esc(p.specialty)}</span>` : ''}
+    <td class="yname">
+      <a href="/youth-player.html?id=${p.playerId}"><b>${esc(p.name)}</b></a>${p.specialty ? ` <span class="chip gold">${esc(p.specialty)}</span>` : ''}
       ${p.injuryWeeks > 0 ? ` <span class="chip critical">inj ${p.injuryWeeks}w</span>` : ''}
-      <div class="muted" style="font-size:11.5px;">${esc(p.verdict.why)}</div>
     </td>
     <td>${p.age.years}y ${p.age.days}d${p.daysUntilAgeOut <= 28 ? ` <span class="chip warning" title="Turns ${data.thresholds.ageOutYears} in ~${p.daysUntilAgeOut} days">19 soon</span>` : ''}</td>
     <td>${promotionCell(p)}</td>
     <td><span class="pos ${posClass(p.suggestedRole)}">${p.suggestedRole}</span></td>
     <td>${ceilingCell(p)}</td>
     ${p.skills.map(skillCell).join('')}
-    <td>${p.revealedPct}%</td>
     <td class="youtlook">${outlookCell(p)}</td>
-    <td>${p.lastMatch.rating != null ? `${p.lastMatch.rating}★` : '—'}${p.lastMatch.position ? ` <span class="muted">${esc(p.lastMatch.position)}</span>` : ''}</td>
-    <td style="font-family:inherit;"><span class="chip ${p.verdict.tone || ''}">${esc(p.verdict.label)}</span></td>
+    <td style="font-family:inherit;"><span class="chip ${p.verdict.tone || ''}" title="${esc(p.verdict.why)}">${esc(p.verdict.label)}</span></td>
   </tr>`).join('');
 
   return `<div class="halfway"></div>
@@ -169,18 +166,20 @@ function tableSection(data) {
       <thead><tr>
         <th>Player</th><th>Age</th><th>Promote</th><th>Role</th><th>Ceiling</th>
         ${Object.entries(SHORT).map(([key, s]) => {
-          const as = data.players[0]?.skills.find((x) => x.key === key)?.trained;
+          // Academy-wide (individual training differs per player, so it isn't marked here).
+          const as = data.trainingHeadroom.find((h) => h.key === key)?.trainedAs;
           return `<th${as ? ` class="ytrained" title="${as} training"` : ''}>${s}${as ? (as === 'primary' ? ' ●' : ' ○') : ''}</th>`;
         }).join('')}
-        <th>Known</th><th>Training outlook</th><th>Last match</th><th>Call</th>
+        <th>Training outlook</th><th>Call</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>
   <p class="muted" style="font-size:11.5px;margin-top:10px;">
     Hattrick reveals a youth player's current and potential levels gradually (scout report, coach comments after
-    matches, training), so every call here is only as good as what's been revealed; the <b>Known</b> column says how much
-    that is. <b>Ceiling</b> is the best revealed potential, or the current level as a lower bound (≥) where the potential
+    matches, training), so every call here is only as good as what's been revealed. Click a player for the details:
+    the reasoning behind the call, how much is revealed, history per skill and match ratings. Hover <b>Call</b> for the
+    short reason. <b>Ceiling</b> is the best revealed potential, or the current level as a lower bound (≥) where the potential
     is still hidden. <b>Role</b> is derived from where the player can end up, not where they last played. Promotion is
     possible from 17 after a minimum stay in the academy (the CSV's own countdown, rolled forward from the import date);
     ages use Hattrick's 112-day year. The "19 soon" flag mirrors community tools such as Hattrick Youthclub.

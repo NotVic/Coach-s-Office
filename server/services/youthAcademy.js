@@ -286,4 +286,41 @@ function buildYouthAcademy({ now = Date.now() } = {}) {
   };
 }
 
-module.exports = { buildYouthAcademy };
+/**
+ * One youth player for the detail page: the same analysis as the academy
+ * view, plus the per-skill history across imports and a dated timeline of
+ * level-ups and revelations. Null when the player isn't (or no longer) in
+ * the academy.
+ */
+function buildYouthPlayer(id, { now = Date.now() } = {}) {
+  const academy = buildYouthAcademy({ now });
+  const player = academy.hasYouth ? academy.players.find((p) => p.playerId === id) : null;
+  if (!player) return null;
+  const snapshots = historyByPlayer().get(id) ?? [];
+
+  const history = YOUTH_SKILLS.map(([key, label]) => ({
+    key,
+    label,
+    points: snapshots.map((s) => ({ date: s.snapshot_date, current: s[`cur_${key}`], potential: s[`max_${key}`] })),
+  }));
+
+  const timeline = [];
+  for (let i = 1; i < snapshots.length; i++) {
+    const { levelUps, revealed } = compareSnapshots(snapshots[i - 1], snapshots[i]);
+    for (const l of levelUps) timeline.push({ date: snapshots[i].snapshot_date, kind: 'level-up', text: `${l.skill} ${l.from} → ${l.to}` });
+    for (const r of revealed) timeline.push({ date: snapshots[i].snapshot_date, kind: 'revealed', text: `${r.skill} ${r.what} revealed: ${r.level}` });
+  }
+  timeline.reverse();
+
+  return {
+    player,
+    history,
+    timeline,
+    firstImport: snapshots[0]?.snapshot_date ?? null,
+    training: academy.training,
+    calibration: academy.calibration,
+    thresholds: academy.thresholds,
+  };
+}
+
+module.exports = { buildYouthAcademy, buildYouthPlayer };
