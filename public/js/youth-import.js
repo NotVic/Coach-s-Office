@@ -42,7 +42,7 @@ async function mountYouthImportForm(container, { onImported } = {}) {
       if (onImported) await onImported(result);
     } catch (err) {
       const rowErrors = err.data?.rowErrors || [];
-      msg.innerHTML = `<div class="banner error">${[err.message, ...rowErrors.map((r) => `• ${r}`)].join('<br>')}</div>`;
+      msg.innerHTML = `<div class="banner error">${[err.message, ...rowErrors.map((r) => `• ${r}`)].map(esc).join('<br>')}</div>`;
     } finally {
       btn.disabled = false;
     }

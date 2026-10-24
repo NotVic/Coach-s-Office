@@ -3,6 +3,14 @@
 // back the connect card, sync schedule and "Sync now" button as they were.
 const CHPP_ENABLED = false;
 
+// Escape anything that came from data (player/team names from a CSV, error
+// messages that echo CSV values, manual input) before it goes into innerHTML.
+function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 // Small fetch wrapper — every endpoint returns JSON, errors come back as
 // { error: "message" } with a non-2xx status.
 // Attaches the full response body to the thrown Error (as `.data`) so a

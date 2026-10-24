@@ -133,9 +133,9 @@ function soonSection(data) {
   const cards = soon.slice(0, 6).map((p) => `
     <a class="player-card" href="/player.html?id=${p.playerId}">
       <div class="top">
-        <div class="avatar">${initials(p.name)}</div>
+        <div class="avatar">${esc(initials(p.name))}</div>
         <div>
-          <div class="name">${p.name}</div>
+          <div class="name">${esc(p.name)}</div>
           <div class="meta"><span class="pos ${posClass(p.positionCode)}">${p.positionCode}</span> · Age ${p.ageYears ?? '—'}</div>
         </div>
       </div>
@@ -161,7 +161,7 @@ function boardSection(data) {
   const rows = data.players.map((p) => `
     <tr>
       <td style="font-family:var(--sb-font-body);">
-        <a href="/player.html?id=${p.playerId}" style="color:inherit;text-decoration:none;font-weight:600;">${p.name}</a>
+        <a href="/player.html?id=${p.playerId}" style="color:inherit;text-decoration:none;font-weight:600;">${esc(p.name)}</a>
         ${p.injuryWeeks > 0 ? ` <span class="chip critical">inj ~${p.injuryWeeks}w</span>` : ''}
       </td>
       <td><span class="pos ${posClass(p.positionCode)}">${p.positionCode}</span></td>
@@ -216,7 +216,7 @@ function calibrationSection(data) {
       ? `Your players train about ${pct}% faster than the formula predicts, so estimates are shortened to match.`
       : `Your players train about ${-pct}% slower than the formula predicts, so estimates are lengthened to match.`;
   const runs = c.recent.map((r) => `<div class="player-row">
-      <span><a href="/player.html?id=${r.playerId}" style="color:inherit;">${r.name}</a>
+      <span><a href="/player.html?id=${r.playerId}" style="color:inherit;">${esc(r.name)}</a>
         <span class="muted" style="font-size:11.5px;">${formatDate(r.from)} → ${formatDate(r.to)}</span></span>
       <span class="right">+${r.levels} seen · ${r.modeled} modeled</span>
     </div>`).join('');
@@ -327,7 +327,7 @@ async function load() {
     const data = await apiGet(`/api/training${minutesMode === 'full' ? '?minutes=full' : ''}`);
     render(data);
   } catch (err) {
-    content.innerHTML = `<div class="banner error">${err.message}</div>`;
+    content.innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
     pageSub.textContent = '';
   }
 }

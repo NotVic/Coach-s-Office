@@ -3,10 +3,6 @@ const pageSub = document.getElementById('pageSub');
 
 const SHORT = { keeper: 'GK', defending: 'DEF', playmaking: 'PM', winger: 'WG', passing: 'PS', scoring: 'SC', setpieces: 'SP' };
 
-function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 function skillCell(s) {
   const cur = s.current ?? '?';
   const max = s.potential ?? '?';

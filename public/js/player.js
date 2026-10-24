@@ -55,13 +55,13 @@ function sidebarHtml(p) {
   const flags = [];
   if (p.injuryWeeks > 0) flags.push(`<span class="chip critical">● Injured, ~${p.injuryWeeks}w</span>`);
   if (p.transferListed) flags.push(`<span class="chip gold">★ Transfer listed</span>`);
-  if (p.specialty) flags.push(`<span class="chip good">${p.specialty}</span>`);
+  if (p.specialty) flags.push(`<span class="chip good">${esc(p.specialty)}</span>`);
 
   return `<div class="card" style="display:flex;flex-direction:column;gap:14px;">
     <div style="display:flex;gap:12px;align-items:center;">
-      <div class="avatar lg">${initials(p.name)}</div>
+      <div class="avatar lg">${esc(initials(p.name))}</div>
       <div>
-        <h2 style="margin-bottom:2px;">${p.name}</h2>
+        <h2 style="margin-bottom:2px;">${esc(p.name)}</h2>
         <div class="meta muted"><span class="pos ${posClass(p.positionCode)}">${p.positionCode}</span> · Age ${p.ageYears ?? '—'}</div>
       </div>
     </div>
@@ -120,7 +120,7 @@ function trainingFocusBanner(trainingFocus) {
   const coach5 = trainingFocus.coachSkillLevel != null && trainingFocus.coachSkillLevel >= 4 && trainingFocus.coachSkillLevel <= 8
     ? `${trainingFocus.coachSkillLevel - 3}/5` : null;
   if (trainingFocus.coachName) {
-    parts.push(`coach ${trainingFocus.coachName}${trainingFocus.coachSkillName ? ` (${trainingFocus.coachSkillName}${coach5 ? ` · ${coach5}` : ''})` : ''}`);
+    parts.push(`coach ${esc(trainingFocus.coachName)}${trainingFocus.coachSkillName ? ` (${trainingFocus.coachSkillName}${coach5 ? ` · ${coach5}` : ''})` : ''}`);
   } else if (trainingFocus.coachSkillLevel != null) {
     parts.push(`coach ${coach5 ?? trainingFocus.coachSkillLevel}${trainingFocus.coachSkillName ? ` (${trainingFocus.coachSkillName})` : ''}`);
   }
@@ -171,7 +171,7 @@ async function load() {
     document.title = `Coach's Office — ${data.player.name}`;
     render(data);
   } catch (err) {
-    content.innerHTML = `<div class="banner error">${err.message}</div>`;
+    content.innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
   }
 }
 

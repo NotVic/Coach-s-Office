@@ -194,8 +194,11 @@ only relevant when running outside Docker), `HOST_PORT` (docker-compose
 only — which host port maps to the container, in case 3000 is taken),
 `DATA_DIR`, `APP_PASSWORD` (optional shared-password gate), and
 `CHPP_CONSUMER_KEY` / `CHPP_CONSUMER_SECRET` (optional pre-fill; can also be
-entered in Settings), and `ANTHROPIC_API_KEY` (optional, for the Assistant
-page; can also be entered in Settings, where a saved key takes precedence).
+entered in Settings), `ANTHROPIC_API_KEY` (optional, for the Assistant
+page; can also be entered in Settings, where a saved key takes precedence),
+`ADVISOR_MAX_PER_HOUR` (app-wide cap on assistant questions, default 30),
+and `TZ` (time zone for snapshot dates, default `Europe/Brussels` in
+docker-compose).
 
 ## Troubleshooting
 

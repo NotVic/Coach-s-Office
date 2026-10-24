@@ -12,6 +12,7 @@
 // history across imports.
 const { parseCsv } = require('../lib/csv');
 const { db, withTransaction } = require('../db');
+const { localDate } = require('../lib/dates');
 const { SPECIALTIES } = require('../chpp/parse');
 
 const YOUTH_SKILLS = [
@@ -26,8 +27,9 @@ function isYouthFormat(headers) {
   return headers.includes(YOUTH_FORMAT_MARKER);
 }
 
+/** Local calendar day (see lib/dates.js). */
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return localDate();
 }
 
 /** "5" → 5, "/6" → 6, "?" / "/?" / "" → null (not revealed); anything else → undefined (invalid). */

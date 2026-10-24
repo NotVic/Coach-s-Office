@@ -40,7 +40,7 @@ function renderConnectCard() {
     connectCard.innerHTML = `
       <h3 style="margin-bottom:6px;">Connected to Hattrick</h3>
       <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 12px;">
-        Team: <b>${status.teamName || '—'}</b> · Last synced: ${status.lastSyncAt ? new Date(status.lastSyncAt).toLocaleString() : 'never'}
+        Team: <b>${esc(status.teamName || '—')}</b> · Last synced: ${status.lastSyncAt ? new Date(status.lastSyncAt).toLocaleString() : 'never'}
       </p>
       <div id="connectError"></div>
       <button class="pill-btn" id="disconnectBtn">Disconnect</button>
@@ -76,7 +76,9 @@ function renderConnectCard() {
 
 function showError(elId, message) {
   const el = document.getElementById(elId);
-  if (el) el.innerHTML = `<div class="banner error">${message}</div>`;
+  // message: a string, or an array of lines (escaped one by one, then joined).
+  const html = (Array.isArray(message) ? message : [message]).map(esc).join('<br>');
+  if (el) el.innerHTML = `<div class="banner error">${html}</div>`;
 }
 
 async function saveKeys() {
@@ -143,13 +145,13 @@ function renderCsvCard() {
     </p>
     ${isCsvSourced && CHPP_ENABLED ? `
       <div class="banner info" style="margin-bottom:10px;">
-        Showing CSV-imported data for "<b>${status.teamName || 'your squad'}</b>". Connecting to Hattrick (under
+        Showing CSV-imported data for "<b>${esc(status.teamName || 'your squad')}</b>". Connecting to Hattrick (under
         Settings below) would replace it with your real, synced squad.
       </div>
     ` : ''}
     <div id="csvError"></div>
     <div class="field"><label for="csvTeamName">Team name</label>
-      <input type="text" id="csvTeamName" value="${csvDefaults.teamName || (isCsvSourced ? (status.teamName || '') : '')}" placeholder="e.g. My Squad">
+      <input type="text" id="csvTeamName" value="${esc(csvDefaults.teamName || (isCsvSourced ? (status.teamName || '') : ''))}" placeholder="e.g. My Squad">
     </div>
     <div class="field"><label for="csvFile">CSV file</label><input type="file" id="csvFile" accept=".csv,text/csv"></div>
     <div class="field"><label for="csvCash">Cash (optional)</label>
@@ -233,7 +235,7 @@ async function importCsv() {
       `<div class="banner good">Imported ${result.playerCount} players${formatNote}. <a href="/index.html">Go to Dashboard →</a></div>`;
   } catch (err) {
     const rowErrors = err.data?.rowErrors || [];
-    showError('csvError', [err.message, ...rowErrors.map((e) => `• ${e}`)].join('<br>'));
+    showError('csvError', [err.message, ...rowErrors.map((e) => `• ${e}`)]);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Import CSV';
@@ -250,7 +252,7 @@ function scheduleRowHtml(slot, i) {
       ${DAY_NAMES.map((d, di) => `<option value="${di}" ${di === slot.day ? 'selected' : ''}>${d}</option>`).join('')}
     </select>
     <input type="time" class="timeInput" value="${slot.time}" style="border:1px solid var(--sb-border);border-radius:var(--sb-radius-sm);padding:6px;">
-    <input type="text" class="labelInput" value="${slot.label || ''}" placeholder="e.g. Training update" style="border:1px solid var(--sb-border);border-radius:var(--sb-radius-sm);padding:6px 8px;flex:1;">
+    <input type="text" class="labelInput" value="${esc(slot.label || '')}" placeholder="e.g. Training update" style="border:1px solid var(--sb-border);border-radius:var(--sb-radius-sm);padding:6px 8px;flex:1;">
     <button class="pill-btn removeRowBtn" type="button">Remove</button>
   </div>`;
 }
@@ -300,7 +302,7 @@ async function saveSchedule() {
     schedule = result.schedule;
     msgEl.innerHTML = `<div class="banner good">Schedule saved.</div>`;
   } catch (err) {
-    msgEl.innerHTML = `<div class="banner error">${err.message}</div>`;
+    msgEl.innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
   }
 }
 
@@ -308,7 +310,7 @@ async function saveSchedule() {
 
 const youthImportForm = document.getElementById('youthImportForm');
 mountYouthImportForm(youthImportForm).catch((err) => {
-  youthImportForm.innerHTML = `<div class="banner error">${err.message}</div>`;
+  youthImportForm.innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
 });
 
 // ---- Assistant (Anthropic API key) card --------------------------------
@@ -325,8 +327,12 @@ function renderAdvisorCard() {
     <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 12px;">
       The <a href="/advisor.html">Assistant</a> page uses your own Anthropic API key.
       Questions and the squad data the assistant looks up are sent to Anthropic's API; usage is billed to your Anthropic account.
-      ${configuredText}
+      ${configuredText} Limited to ${advisorStatus.maxPerHour} questions per hour.
     </p>
+    ${advisorStatus.passwordProtected ? '' : `<div class="banner info" style="margin-bottom:12px;">
+      This app has no password (APP_PASSWORD isn't set). Fine on your home network, but if it's reachable from the
+      internet, anyone who finds it could use the assistant on your key. Set APP_PASSWORD in your stack's environment.
+    </div>`}
     <div id="advisorMsg"></div>
     <div class="field"><label for="advisorModel">Model</label>
       <select id="advisorModel">
@@ -352,7 +358,7 @@ async function saveAdvisorModel(e) {
     msgEl.innerHTML = `<div class="banner good">Assistant now uses ${select.options[select.selectedIndex].text.replace(/ \(.*$/, '')}.</div>`;
   } catch (err) {
     select.value = advisorStatus.model;
-    msgEl.innerHTML = `<div class="banner error">${err.message}</div>`;
+    msgEl.innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
   }
 }
 
@@ -371,7 +377,7 @@ async function updateAnthropicKey(body, successText) {
     document.getElementById('advisorMsg').innerHTML = `<div class="banner good">${successText}</div>`;
   } catch (err) {
     btn.disabled = false;
-    document.getElementById('advisorMsg').innerHTML = `<div class="banner error">${err.message}</div>`;
+    document.getElementById('advisorMsg').innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
   }
 }
 
@@ -398,7 +404,7 @@ async function load() {
     connectCard.hidden = !CHPP_ENABLED;
     scheduleCard.hidden = !CHPP_ENABLED;
   } catch (err) {
-    csvCard.innerHTML = `<div class="banner error">${err.message}</div>`;
+    csvCard.innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
   }
 }
 

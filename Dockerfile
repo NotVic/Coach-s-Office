@@ -2,6 +2,8 @@
 # this is a plain single-stage build that works the same on any
 # architecture your home server runs (ARM/Raspberry Pi included).
 FROM node:22-alpine
+# Time zone data, so TZ (docker-compose.yml) gives local snapshot dates.
+RUN apk add --no-cache tzdata
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json* ./

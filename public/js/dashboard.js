@@ -74,19 +74,19 @@ function needsAttentionRows(data) {
   const rows = [];
   for (const p of na.injured || []) {
     rows.push(`<div class="player-row">
-      <a class="name" href="/player.html?id=${p.playerId}" style="color:inherit;text-decoration:none;">${p.name}</a>
+      <a class="name" href="/player.html?id=${p.playerId}" style="color:inherit;text-decoration:none;">${esc(p.name)}</a>
       <span class="right chip critical">injured, ~${p.weeks}w</span>
     </div>`);
   }
   for (const l of na.levelUps || []) {
     rows.push(`<div class="player-row">
-      <a class="name" href="/player.html?id=${l.playerId}" style="color:inherit;text-decoration:none;">${l.name}</a>
+      <a class="name" href="/player.html?id=${l.playerId}" style="color:inherit;text-decoration:none;">${esc(l.name)}</a>
       <span class="right chip good">${l.skill} ${l.from}→${l.to} — review lineup/wage</span>
     </div>`);
   }
   for (const m of na.fallingValue || []) {
     rows.push(`<div class="player-row">
-      <a class="name" href="/player.html?id=${m.playerId}" style="color:inherit;text-decoration:none;">${m.name}</a>
+      <a class="name" href="/player.html?id=${m.playerId}" style="color:inherit;text-decoration:none;">${esc(m.name)}</a>
       <span class="right chip warning">value est. ${formatNumber(m.delta)} — possible sell window</span>
     </div>`);
   }
@@ -146,9 +146,9 @@ function playerCardHtml(p) {
   if (p.transferListed) flags.push(`<span class="chip gold">★ Listed</span>`);
   return `<a class="player-card" href="/player.html?id=${p.playerId}">
     <div class="top">
-      <div class="avatar">${initials(p.name)}</div>
+      <div class="avatar">${esc(initials(p.name))}</div>
       <div>
-        <div class="name">${p.name}</div>
+        <div class="name">${esc(p.name)}</div>
         <div class="meta"><span class="pos ${posClass(p.positionCode)}">${p.positionCode}</span> · Age ${p.ageYears ?? '—'}</div>
       </div>
     </div>
@@ -215,7 +215,7 @@ async function load() {
     syncBtn.textContent = data.dataSource === 'csv' ? '↑ Upload data' : '↻ Sync now';
     render(data);
   } catch (err) {
-    content.innerHTML = `<div class="banner error">${err.message}</div>`;
+    content.innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
   }
 }
 
@@ -230,7 +230,7 @@ syncBtn.addEventListener('click', async () => {
     await apiPost('/api/chpp/sync-now');
     await load();
   } catch (err) {
-    content.insertAdjacentHTML('afterbegin', `<div class="banner error">${err.message}</div>`);
+    content.insertAdjacentHTML('afterbegin', `<div class="banner error">${esc(err.message)}</div>`);
   } finally {
     syncBtn.disabled = false;
     syncBtn.textContent = '↻ Sync now';

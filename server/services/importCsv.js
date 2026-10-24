@@ -11,6 +11,7 @@
 // real team ID.
 const { parseCsv } = require('../lib/csv');
 const { getSetting, setSetting, deleteSetting, withTransaction, db } = require('../db');
+const { localDate } = require('../lib/dates');
 const { estimateValue } = require('./valuation');
 const { detectFormat, csvRecordToPlayerInput, hattrickRecordToPlayerInput, stablePlayerId } = require('./csvSchema');
 const { SPECIALTIES, TRAINING_TYPES } = require('../chpp/parse');
@@ -25,8 +26,9 @@ const { isYouthFormat } = require('./importYouthCsv');
 // CSV-imported "team" never collides with a real one once you connect.
 const CSV_IMPORT_TEAM_ID = 900000000;
 
+/** Local calendar day (see lib/dates.js). */
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return localDate();
 }
 
 function logImport(status, message) {

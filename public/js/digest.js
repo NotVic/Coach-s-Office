@@ -31,23 +31,23 @@ function render(data) {
   </div>`;
 
   const levelUpRows = data.levelUps.map((l) => `<div class="player-row">
-    <span class="name"><a href="/player.html?id=${l.playerId}" style="color:inherit;text-decoration:none;">${l.name}</a></span>
+    <span class="name"><a href="/player.html?id=${l.playerId}" style="color:inherit;text-decoration:none;">${esc(l.name)}</a></span>
     <span class="meta">${l.skill}</span>
     <span class="right">${l.from} → <b>${l.to}</b></span>
   </div>`);
 
   const injuryRows = data.newInjuries.map((i) => `<div class="player-row">
-    <span class="name"><a href="/player.html?id=${i.playerId}" style="color:inherit;text-decoration:none;">${i.name}</a></span>
+    <span class="name"><a href="/player.html?id=${i.playerId}" style="color:inherit;text-decoration:none;">${esc(i.name)}</a></span>
     <span class="right chip critical">out ~${i.weeks}w</span>
   </div>`);
 
   const recoveredRows = data.recovered.map((r) => `<div class="player-row">
-    <span class="name"><a href="/player.html?id=${r.playerId}" style="color:inherit;text-decoration:none;">${r.name}</a></span>
+    <span class="name"><a href="/player.html?id=${r.playerId}" style="color:inherit;text-decoration:none;">${esc(r.name)}</a></span>
     <span class="right chip good">back fit</span>
   </div>`);
 
   const moverRows = data.valueMovers.map((m) => `<div class="player-row">
-    <span class="name"><a href="/player.html?id=${m.playerId}" style="color:inherit;text-decoration:none;">${m.name}</a></span>
+    <span class="name"><a href="/player.html?id=${m.playerId}" style="color:inherit;text-decoration:none;">${esc(m.name)}</a></span>
     <span class="right ${m.delta >= 0 ? '' : ''}" style="color:${m.delta >= 0 ? 'var(--sb-status-good-text)' : 'var(--sb-status-critical-text)'};">${m.delta >= 0 ? '+' : ''}${formatNumber(m.delta)}</span>
   </div>`);
 
@@ -63,7 +63,7 @@ async function load() {
     const data = await apiGet('/api/digest');
     render(data);
   } catch (err) {
-    content.innerHTML = `<div class="banner error">${err.message}</div>`;
+    content.innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
   }
 }
 

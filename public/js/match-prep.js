@@ -2,7 +2,7 @@ const content = document.getElementById('content');
 const pageSub = document.getElementById('pageSub');
 
 function playerInitials(p) {
-  return initials(`${p.first_name} ${p.last_name}`);
+  return initials(`${esc(p.first_name)} ${esc(p.last_name)}`);
 }
 
 function lineupSection(lineup) {
@@ -13,7 +13,7 @@ function lineupSection(lineup) {
     att: lineup.att.map((p) => ({ code: playerInitials(p) })),
   };
   const allPlayers = [...lineup.gk, ...lineup.def, ...lineup.mid, ...lineup.att, ...lineup.fillers];
-  const rows = allPlayers.map((p) => `<tr><td>${p.first_name} ${p.last_name}</td><td>${p.position_code}</td><td>${formatNumber(p.tsi)}</td></tr>`).join('');
+  const rows = allPlayers.map((p) => `<tr><td>${esc(p.first_name)} ${esc(p.last_name)}</td><td>${p.position_code}</td><td>${formatNumber(p.tsi)}</td></tr>`).join('');
 
   return `<div class="card" style="display:grid;grid-template-columns:280px 1fr;gap:24px;">
     <div>
@@ -60,7 +60,7 @@ function outcomeSection(data) {
 
 function availabilitySection(list) {
   if (!list.length) return `<div class="card"><h3 style="margin-bottom:6px;">Availability</h3><p class="muted" style="font-size:13px;margin:0;">Full squad available — no injuries tracked.</p></div>`;
-  const rows = list.map((p) => `<div class="player-row"><span class="name">${p.name}</span><span class="right chip critical">~${p.injuryWeeks}w</span></div>`).join('');
+  const rows = list.map((p) => `<div class="player-row"><span class="name">${esc(p.name)}</span><span class="right chip critical">~${p.injuryWeeks}w</span></div>`).join('');
   return `<div class="card"><h3 style="margin-bottom:6px;">Availability</h3>${rows}</div>`;
 }
 
@@ -75,7 +75,7 @@ function fixtureFormHtml(prefill = {}) {
       without it there's no win/draw/loss estimate (the app won't invent one).
     </p>
     <div id="fixtureError"></div>
-    <div class="field"><label for="fxOpponent">Opponent team name</label><input type="text" id="fxOpponent" value="${prefill.opponentName || ''}"></div>
+    <div class="field"><label for="fxOpponent">Opponent team name</label><input type="text" id="fxOpponent" value="${esc(prefill.opponentName || '')}"></div>
     <div class="field"><label for="fxDate">Match date &amp; time</label><input type="datetime-local" id="fxDate" value="${prefill.date || ''}"
       style="border:1px solid var(--sb-border);border-radius:var(--sb-radius-sm);padding:8px 10px;font-size:13px;background:var(--sb-surface);color:var(--sb-text-primary);"></div>
     <div class="field"><label for="fxVenue">Venue</label>
@@ -84,7 +84,7 @@ function fixtureFormHtml(prefill = {}) {
         <option value="away" ${prefill.isHome === false ? 'selected' : ''}>Away</option>
       </select>
     </div>
-    <div class="field"><label for="fxTsi">Opponent total TSI (optional)</label><input type="text" id="fxTsi" inputmode="numeric" value="${prefill.opponentTsi || ''}" placeholder="from their team page">
+    <div class="field"><label for="fxTsi">Opponent total TSI (optional)</label><input type="text" id="fxTsi" inputmode="numeric" value="${esc(prefill.opponentTsi || '')}" placeholder="from their team page">
       <span class="hint">Leave blank if you'd rather skip the outcome estimate.</span></div>
     <button class="pill-btn primary" id="saveFixtureBtn" type="button">Save fixture</button>
   </div>`;
@@ -103,7 +103,7 @@ function wireFixtureForm() {
       });
       await load();
     } catch (err) {
-      document.getElementById('fixtureError').innerHTML = `<div class="banner error">${err.message}</div>`;
+      document.getElementById('fixtureError').innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
       btn.disabled = false;
     }
   });
@@ -114,7 +114,7 @@ function render(data) {
     if (data.connected === false) {
       // CSV-sourced squad: offer manual fixture entry instead of a dead end.
       const expiredNote = data.expiredFixture
-        ? `<div class="banner info" style="max-width:520px;">Your last entered fixture (vs ${data.expiredFixture.opponentName}, ${formatDate(data.expiredFixture.date)}) has been played — enter the next one.</div>`
+        ? `<div class="banner info" style="max-width:520px;">Your last entered fixture (vs ${esc(data.expiredFixture.opponentName)}, ${formatDate(data.expiredFixture.date)}) has been played — enter the next one.</div>`
         : '';
       content.innerHTML = expiredNote + fixtureFormHtml(data.expiredFixture ? { isHome: data.expiredFixture.isHome } : {});
       wireFixtureForm();
@@ -127,7 +127,7 @@ function render(data) {
   }
 
   const { match, opponent, ownTsi } = data;
-  pageSub.textContent = `vs ${opponent.name || 'TBD'}${opponent.league?.name ? ' · ' + opponent.league.name : ''} · ${formatDate(match.date)} · ${match.isHome ? 'Home' : 'Away'}`
+  pageSub.textContent = `vs ${esc(opponent.name || 'TBD')}${opponent.league?.name ? ' · ' + opponent.league.name : ''} · ${formatDate(match.date)} · ${match.isHome ? 'Home' : 'Away'}`
     + (data.source === 'manual' ? ' · manually entered' : '');
 
   const tsiDiff = opponent.tsiAvailable ? ownTsi - opponent.tsi : null;
@@ -140,8 +140,8 @@ function render(data) {
     </div>
     <div class="card stat-tile">
       <span class="caption">Opponent</span>
-      <span class="value" style="font-size:18px;">${opponent.name || '—'}</span>
-      <span class="delta flat">${opponent.arena?.name || 'Arena unknown'}</span>
+      <span class="value" style="font-size:18px;">${esc(opponent.name || '—')}</span>
+      <span class="delta flat">${esc(opponent.arena?.name || 'Arena unknown')}</span>
     </div>
     <div class="card stat-tile">
       <span class="caption">Venue</span>
@@ -178,7 +178,7 @@ function render(data) {
       </div>` : `
       <div class="card">
         <h3 style="margin-bottom:6px;">Opponent snapshot</h3>
-        <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 6px;">League: ${opponent.league?.name || '—'}</p>
+        <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 6px;">League: ${esc(opponent.league?.name || '—')}</p>
         <p style="font-size:13px;color:var(--sb-text-secondary);margin:0;">Power rating: ${opponent.powerRating ?? '—'}</p>
         <p class="muted" style="font-size:11.5px;margin-top:8px;">Detailed opponent skills aren't available via CHPP unless you've scouted them in-game.</p>
       </div>`}
@@ -204,7 +204,7 @@ async function load() {
     const data = await apiGet('/api/match-prep');
     render(data);
   } catch (err) {
-    content.innerHTML = `<div class="banner error">${err.message}</div>`;
+    content.innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
     pageSub.textContent = '';
   }
 }

@@ -6,6 +6,7 @@
 // user-configured slot, tracking an "already fired today" marker per slot
 // so it only runs once.
 const { getSetting, setSetting } = require('../db');
+const { localDate } = require('../lib/dates');
 const { runFullSync } = require('./sync');
 
 const CHECK_INTERVAL_MS = 60 * 1000;
@@ -32,7 +33,7 @@ async function tick() {
   const now = new Date();
   const day = now.getDay(); // 0 = Sunday … 6 = Saturday
   const hm = now.toTimeString().slice(0, 5); // "HH:MM", 24h, zero-padded — safe to compare lexicographically
-  const dateKey = now.toISOString().slice(0, 10);
+  const dateKey = localDate(now); // local, like the HH:MM compared above
 
   for (const slot of schedule) {
     if (slot.day !== day || hm < slot.time) continue;

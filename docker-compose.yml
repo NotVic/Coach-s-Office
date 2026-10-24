@@ -12,6 +12,11 @@ services:
     environment:
       - PORT=3000
       - DATA_DIR=/app/data
+      # Snapshot dates are local calendar days: set your own time zone so an
+      # upload just after midnight lands on the right day.
+      - TZ=${TZ:-Europe/Brussels}
+      # Max assistant questions per hour (each one is billed to your key).
+      - ADVISOR_MAX_PER_HOUR=${ADVISOR_MAX_PER_HOUR:-30}
       # Uncomment and set to protect the app with a shared password (HTTP
       # Basic Auth) — recommended if this is reachable from outside your LAN.
       # - APP_PASSWORD=change-me

@@ -10,6 +10,9 @@ router.get('/status', (req, res) => {
     configured: Boolean(source),
     source,
     model: advisor.currentModel().id,
+    // Without APP_PASSWORD anyone who can reach the app can spend the key.
+    passwordProtected: Boolean(process.env.APP_PASSWORD),
+    maxPerHour: MAX_PER_HOUR,
     models: advisor.MODELS.map(({ id, label, note }) => ({ id, label, note })),
   });
 });
@@ -40,6 +43,26 @@ router.post('/key', express.json(), async (req, res) => {
   res.json({ ok: true, source: advisor.keySource() });
 });
 
+// Spending guard: every question is billed to the manager's Anthropic
+// account, so cap how many can start per hour and how many run at once,
+// app-wide (one club, one key; per-IP limits mean little behind a home
+// router or reverse proxy). Tune with ADVISOR_MAX_PER_HOUR.
+const MAX_PER_HOUR = Number(process.env.ADVISOR_MAX_PER_HOUR) || 30;
+const MAX_CONCURRENT = 2;
+const recentStarts = [];
+let running = 0;
+
+function rateLimitError() {
+  const hourAgo = Date.now() - 60 * 60 * 1000;
+  while (recentStarts.length && recentStarts[0] < hourAgo) recentStarts.shift();
+  if (recentStarts.length >= MAX_PER_HOUR) {
+    const minutes = Math.ceil((recentStarts[0] - hourAgo) / 60000);
+    return `Question limit reached (${MAX_PER_HOUR} per hour). Try again in ~${minutes} min.`;
+  }
+  if (running >= MAX_CONCURRENT) return 'Already answering other questions. Try again in a moment.';
+  return null;
+}
+
 // Streams the answer as server-sent events over the POST response:
 // start → (tool | text)* → done | error.
 router.post('/chat', express.json(), async (req, res) => {
@@ -47,9 +70,14 @@ router.post('/chat', express.json(), async (req, res) => {
   if (!message) return res.status(400).json({ error: 'Message is empty.' });
   if (message.length > 4000) return res.status(400).json({ error: 'Message is too long (max 4000 characters).' });
 
+  const limited = rateLimitError();
+  if (limited) return res.status(429).json({ error: limited });
+
   const conv = advisor.getConversation(req.body?.conversationId);
   if (conv.busy) return res.status(409).json({ error: 'Still answering the previous question.' });
   conv.busy = true;
+  recentStarts.push(Date.now());
+  running += 1;
 
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
   res.flushHeaders();
@@ -70,6 +98,7 @@ router.post('/chat', express.json(), async (req, res) => {
     }
   } finally {
     conv.busy = false;
+    running -= 1;
     res.end();
   }
 });

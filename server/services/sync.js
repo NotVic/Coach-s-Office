@@ -1,4 +1,5 @@
 const { db, getSetting, setSetting, deleteSetting, withTransaction } = require('../db');
+const { localDate } = require('../lib/dates');
 const chpp = require('../chpp/client');
 const { parsePlayersXml, parseTeamDetailsXml, parseEconomyXml, parseTrainingXml, parseStaffListXml, skillLevelName } = require('../chpp/parse');
 const { estimateValue } = require('./valuation');
@@ -19,8 +20,9 @@ const FILE_VERSIONS = {
   stafflist: '1.2',
 };
 
+/** Local calendar day (see lib/dates.js). */
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return localDate();
 }
 
 function credentials() {
