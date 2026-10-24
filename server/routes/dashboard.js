@@ -1,6 +1,7 @@
 const express = require('express');
 const { db, getSetting } = require('../db');
-const { buildNeedsAttention } = require('../services/changes');
+const { buildNeedsAttention, computeRecentChanges } = require('../services/changes');
+const { buildSellCandidates } = require('../services/sellWindow');
 
 const router = express.Router();
 
@@ -63,6 +64,9 @@ router.get('/', (req, res) => {
     positionComposition,
     weeklyWageBill,
     needsAttention: buildNeedsAttention(teamId, players),
+    // What changed between the two latest imports (the old Weekly Digest).
+    changes: computeRecentChanges(teamId),
+    sellCandidates: buildSellCandidates(teamId),
     players: players.map(toPlayerSummary),
   });
 });

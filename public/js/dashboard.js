@@ -69,28 +69,52 @@ function renderCharts(data) {
   </div>`;
 }
 
+function playerLink(id, name) {
+  return `<a class="name" href="/player.html?id=${id}" style="color:inherit;text-decoration:none;">${esc(name)}</a>`;
+}
+
+// Needs attention: who's out, and who may be worth selling now (with why).
 function needsAttentionRows(data) {
   const na = data.needsAttention || {};
   const rows = [];
   for (const p of na.injured || []) {
-    rows.push(`<div class="player-row">
-      <a class="name" href="/player.html?id=${p.playerId}" style="color:inherit;text-decoration:none;">${esc(p.name)}</a>
-      <span class="right chip critical">injured, ~${p.weeks}w</span>
-    </div>`);
+    rows.push(`<div class="player-row">${playerLink(p.playerId, p.name)}
+      <span class="right chip critical">injured, ~${p.weeks}w</span></div>`);
   }
-  for (const l of na.levelUps || []) {
-    rows.push(`<div class="player-row">
-      <a class="name" href="/player.html?id=${l.playerId}" style="color:inherit;text-decoration:none;">${esc(l.name)}</a>
-      <span class="right chip good">${l.skill} ${l.from}→${l.to} — review lineup/wage</span>
-    </div>`);
-  }
-  for (const m of na.fallingValue || []) {
-    rows.push(`<div class="player-row">
-      <a class="name" href="/player.html?id=${m.playerId}" style="color:inherit;text-decoration:none;">${esc(m.name)}</a>
-      <span class="right chip warning">value est. ${formatNumber(m.delta)} — possible sell window</span>
+  for (const c of data.sellCandidates || []) {
+    rows.push(`<div class="player-row sell-row">
+      <div>${playerLink(c.playerId, c.name)} <span class="muted" style="font-size:11.5px;">${c.positionCode} · ${c.ageYears} · ~${formatNumber(c.valueEstimate)}</span>
+        <div class="muted" style="font-size:11.5px;">${c.reasons.map(esc).join(' · ')}</div></div>
+      <span class="right chip warning">sell window?</span>
     </div>`);
   }
   return rows;
+}
+
+// The old Weekly Digest, condensed: what changed between the two latest imports.
+function sinceLastImportCard(data) {
+  const c = data.changes;
+  if (!c || !c.ready) {
+    return `<div class="card" style="margin-top:16px;"><h3 style="margin-bottom:6px;">Since the last import</h3>
+      <p class="muted" style="font-size:13px;margin:0;">Needs two imports to compare.</p></div>`;
+  }
+  const list = (title, rows, empty) => `<div><h4 class="upload-sub">${title}</h4>${rows.length ? rows.join('') : `<p class="muted" style="font-size:12.5px;margin:0;">${empty}</p>`}</div>`;
+  const levelUps = c.levelUps.map((l) => `<div class="player-row">${playerLink(l.playerId, l.name)}
+    <span class="right">${l.skill} ${l.from} → <b>${l.to}</b></span></div>`);
+  const injuries = [
+    ...c.newInjuries.map((i) => `<div class="player-row">${playerLink(i.playerId, i.name)}<span class="right chip critical">out ~${i.weeks}w</span></div>`),
+    ...c.recovered.map((r) => `<div class="player-row">${playerLink(r.playerId, r.name)}<span class="right chip good">back fit</span></div>`),
+  ];
+  const movers = c.valueMovers.slice(0, 6).map((m) => `<div class="player-row">${playerLink(m.playerId, m.name)}
+    <span class="right" style="color:${m.delta >= 0 ? 'var(--sb-status-good-text)' : 'var(--sb-status-critical-text)'};">${m.delta >= 0 ? '+' : ''}${formatNumber(m.delta)}</span></div>`);
+  return `<div class="card" style="margin-top:16px;">
+    <h3 style="margin-bottom:10px;">Since the last import <span class="muted" style="font-size:12px;font-weight:400;">${formatDate(c.previousDate)} → ${formatDate(c.currentDate)}</span></h3>
+    <div class="grid cols-3">
+      ${list('Level-ups', levelUps, 'No level-ups.')}
+      ${list('Injuries', injuries, 'No new injuries or returns.')}
+      ${list('Value movers (est.)', movers, 'No value changes.')}
+    </div>
+  </div>`;
 }
 
 function renderInsightRow(data) {
@@ -121,7 +145,8 @@ function renderInsightRow(data) {
 
   return `<div class="grid cols-2">
     <div class="card">
-      <h3 style="margin-bottom:8px;">Needs attention</h3>
+      <h3 style="margin-bottom:2px;">Needs attention</h3>
+      <p class="muted" style="font-size:11.5px;margin:0 0 8px;">Injuries, and players where selling soon is worth a look (estimates, not a verdict).</p>
       ${naRows.length ? naRows.join('') : needsAttentionEmptyState(data)}
     </div>
     <div class="card chart-card">
@@ -130,14 +155,11 @@ function renderInsightRow(data) {
         ? `<div class="plot">${Charts.divergingBarChart(netPoints)}</div>`
         : `<p class="muted" style="font-size:12.5px;margin:0;">Needs two imports with your cash balance filled in (Settings → Data upload).</p>`}
     </div>
-  </div>`;
+  </div>` + sinceLastImportCard(data);
 }
 
-function needsAttentionEmptyState(data) {
-  if (!data.needsAttention?.hasRecentChanges) {
-    return '<p class="muted" style="font-size:13px;margin:0;">Nothing yet — this fills in once there are at least two syncs to compare, and any current injuries.</p>';
-  }
-  return '<p class="muted" style="font-size:13px;margin:0;">Nothing needs attention right now.</p>';
+function needsAttentionEmptyState() {
+  return '<p class="muted" style="font-size:13px;margin:0;">Nothing needs attention: no injuries, and no sell signals.</p>';
 }
 
 function playerCardHtml(p) {
