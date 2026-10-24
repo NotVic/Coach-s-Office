@@ -76,7 +76,9 @@ function sidebarHtml(p) {
     <div class="stat-tile">
       <span class="caption">Salary / week</span>
       <span class="value mono-stat">${formatNumber(p.salary)}</span>
-      ${p.salaryShareOfWeeklyIncome != null ? `<span class="muted" style="font-size:12px;">~${p.salaryShareOfWeeklyIncome}% of your team's weekly income</span>` : ''}
+      ${p.salaryShareOfWeeklyIncome != null
+        ? `<span class="muted" style="font-size:12px;">~${p.salaryShareOfWeeklyIncome}% of your team's weekly income</span>`
+        : p.salaryShareOfWageBill != null ? `<span class="muted" style="font-size:12px;">${p.salaryShareOfWageBill}% of the squad's wage bill</span>` : ''}
     </div>
     <div class="stat-tile"><span class="caption">Form</span><span class="value mono-stat">${p.form ?? '—'}</span></div>
   </div>`;

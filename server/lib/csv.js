@@ -36,15 +36,19 @@ function parseCsv(text) {
   if (field.length > 0 || row.length > 0) pushRow();
 
   const nonEmpty = rows.filter((r) => !(r.length === 1 && r[0].trim() === ''));
-  if (nonEmpty.length === 0) return { headers: [], records: [] };
+  if (nonEmpty.length === 0) return { headers: [], records: [], rows: [] };
 
   const headers = nonEmpty[0].map((h) => h.trim());
-  const records = nonEmpty.slice(1).map((r) => {
+  // `rows` keeps each data row positional too, for formats that repeat a
+  // header (Hattrick's youth export has "Keeper,Keeper" = current, potential),
+  // where keying by header name would let the second column overwrite the first.
+  const dataRows = nonEmpty.slice(1).map((r) => headers.map((_, i) => (r[i] ?? '').trim()));
+  const records = dataRows.map((r) => {
     const obj = {};
-    headers.forEach((h, i) => { obj[h] = (r[i] ?? '').trim(); });
+    headers.forEach((h, i) => { obj[h] = r[i]; });
     return obj;
   });
-  return { headers, records };
+  return { headers, records, rows: dataRows };
 }
 
 function csvField(value) {

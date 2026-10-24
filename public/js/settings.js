@@ -156,16 +156,14 @@ function renderCsvCard() {
       <input type="text" id="csvTeamName" value="${csvDefaults.teamName || (isCsvSourced ? (status.teamName || '') : '')}" placeholder="e.g. My Squad">
     </div>
     <div class="field"><label for="csvFile">CSV file</label><input type="file" id="csvFile" accept=".csv,text/csv"></div>
-    <details style="margin-bottom:14px;" ${csvDefaults.cash != null || csvDefaults.weeklyIncome != null ? 'open' : ''}>
-      <summary style="cursor:pointer;font-size:13px;font-weight:600;">Team finances (optional)</summary>
-      <p class="muted" style="font-size:12px;margin:6px 0;">
-        Per-player exports don't include club finances — if you want the Dashboard's weekly net income chart to
-        have something to show, copy these from Hattrick's own Club → Finances page.
-      </p>
-      <div class="field"><label for="csvCash">Cash</label><input type="text" id="csvCash" inputmode="numeric" value="${csvDefaults.cash ?? ''}" placeholder="e.g. 500000"></div>
-      <div class="field"><label for="csvIncome">Weekly income</label><input type="text" id="csvIncome" inputmode="numeric" value="${csvDefaults.weeklyIncome ?? ''}" placeholder="e.g. 50000"></div>
-      <div class="field"><label for="csvExpenses">Weekly expenses</label><input type="text" id="csvExpenses" inputmode="numeric" value="${csvDefaults.weeklyExpenses ?? ''}" placeholder="e.g. 42000"></div>
-    </details>
+    <div class="field"><label for="csvCash">Cash (optional)</label>
+      <input type="text" id="csvCash" inputmode="numeric" placeholder="e.g. 500000">
+      <span class="hint">
+        Your current cash balance, from Hattrick's Club → Finances page. Fill it in on every import: the change
+        between imports becomes the Dashboard's weekly cash chart and the digest's cash change.
+        ${csvDefaults.cash != null ? `Last import: ${formatNumber(csvDefaults.cash)}.` : ''}
+      </span>
+    </div>
     <details style="margin-bottom:14px;" ${csvDefaults.trainingTypeId != null ? 'open' : ''}>
       <summary style="cursor:pointer;font-size:13px;font-weight:600;">Training focus (optional)</summary>
       <p class="muted" style="font-size:12px;margin:6px 0;">
@@ -212,9 +210,8 @@ function renderCsvCard() {
 async function importCsv() {
   const fileInput = document.getElementById('csvFile');
   const teamName = document.getElementById('csvTeamName').value.trim();
-  const cash = document.getElementById('csvCash').value.trim();
-  const weeklyIncome = document.getElementById('csvIncome').value.trim();
-  const weeklyExpenses = document.getElementById('csvExpenses').value.trim();
+  // Thousands separators as Hattrick shows them ("1 234 567" / "1.234.567") are fine to paste.
+  const cash = document.getElementById('csvCash').value.replace(/[\s.,']/g, '');
   const trainingTypeId = document.getElementById('csvTrainingType').value;
   const trainingIntensity = document.getElementById('csvTrainingIntensity').value.trim();
   const trainingStaminaPct = document.getElementById('csvTrainingStamina').value.trim();
@@ -230,7 +227,7 @@ async function importCsv() {
   try {
     const text = await file.text();
     const result = await apiPost('/api/csv/import', {
-      csv: text, teamName, cash, weeklyIncome, weeklyExpenses,
+      csv: text, teamName, cash,
       trainingTypeId, trainingIntensity, trainingStaminaPct, coachLevel5, assistant1Level, assistant2Level,
     });
     [status, csvDefaults] = await Promise.all([apiGet('/api/chpp/status'), apiGet('/api/csv/defaults')]);
@@ -310,6 +307,23 @@ async function saveSchedule() {
     msgEl.innerHTML = `<div class="banner error">${err.message}</div>`;
   }
 }
+
+// ---- Youth academy CSV card (static markup in settings.html) -----------
+
+document.getElementById('youthCsvFile').addEventListener('change', async (e) => {
+  const input = e.target;
+  const msgEl = document.getElementById('youthCsvMsg');
+  if (!input.files[0]) return;
+  try {
+    const result = await uploadYouthCsv(input.files[0]);
+    msgEl.innerHTML = `<div class="banner good">Imported ${result.playerCount} youth players. <a href="/youth.html">Open the Youth Academy →</a></div>`;
+  } catch (err) {
+    const rowErrors = err.data?.rowErrors || [];
+    msgEl.innerHTML = `<div class="banner error">${[err.message, ...rowErrors.map((r) => `• ${r}`)].join('<br>')}</div>`;
+  } finally {
+    input.value = '';
+  }
+});
 
 // ---- Assistant (Anthropic API key) card --------------------------------
 

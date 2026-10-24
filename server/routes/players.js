@@ -38,6 +38,9 @@ router.get('/:id', (req, res) => {
     'SELECT * FROM player_snapshots WHERE player_id = ? ORDER BY snapshot_date ASC'
   ).all(playerId);
 
+  const wageBill = db.prepare('SELECT SUM(salary) AS total FROM players WHERE team_id = ? AND is_active = 1')
+    .get(player.team_id)?.total;
+
   // Hattrick trains one club-wide skill at a time. This prefers a known
   // value — synced from CHPP's file=training, or manually reported through
   // CSV import (see services/sync.js and services/importCsv.js; both write
@@ -142,6 +145,8 @@ router.get('/:id', (req, res) => {
       salaryShareOfWeeklyIncome: teamSnapshot?.weekly_income
         ? Math.round((player.salary / teamSnapshot.weekly_income) * 1000) / 10
         : null,
+      // Always available (a CSV import has wages but no income figure).
+      salaryShareOfWageBill: wageBill ? Math.round((player.salary / wageBill) * 1000) / 10 : null,
     },
     skills,
     trainedSkillKey,

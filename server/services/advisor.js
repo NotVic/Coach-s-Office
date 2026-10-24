@@ -12,6 +12,7 @@ const { buildTrainingBoard } = require('./trainingBoard');
 const { trainingPeriods } = require('./trainingLog');
 const { computeCalibration } = require('./calibration');
 const { buildMatchPrep } = require('./matchPrep');
+const { buildYouthAcademy } = require('./youthAcademy');
 const { skillLevelName } = require('../chpp/parse');
 
 const MODEL = 'claude-opus-5-5';
@@ -171,6 +172,15 @@ const TOOLS = [
     },
   },
   {
+    name: 'get_youth_academy',
+    label: 'Looking at the youth academy',
+    description: 'The youth academy (imported from Hattrick\'s youth CSV): per youth player the age, days until promotable, each skill as current and potential (null = not revealed yet, maxedOut = no more to train), best known ceiling, known headroom, how much is revealed, a suggested role, last match, what changed since the previous import, and the app\'s rule-based call (promote / keep training / low ceiling). Also where youth training would still pay off per skill.',
+    input_schema: NO_INPUT,
+    run() {
+      return buildYouthAcademy();
+    },
+  },
+  {
     name: 'get_next_match',
     label: 'Looking at the next match',
     description: 'Next fixture (from Hattrick when connected, or entered manually on Match Prep): opponent, date, home/away, a rough TSI-based outcome estimate, the app\'s suggested XI and the availability list.',
@@ -220,7 +230,8 @@ How to work:
 - Look the data up with your tools before answering. Never invent players, numbers or dates. If the data needed isn't there, say what's missing.
 - The history comes from weekly snapshots this app took itself, so it may cover only a few weeks. Say how much evidence a conclusion rests on (for example "based on 3 syncs") and be more tentative when it is thin.
 - Training ETAs and transfer values in this app are estimates: observed rates from the app's own history, and a community-reverse-engineered training formula (Schum). They are not Hattrick's internal numbers. Treat them as ranges.
-- Skill levels use Hattrick's 0-20 scale with names (e.g. 5 = adequate, 7 = excellent). Use the names the tools give you.
+- Skill levels use Hattrick's 0-20 scale with names (e.g. 5 = inadequate, 6 = passable, 7 = solid, 8 = excellent). Use the names the tools give you.
+- Youth players: what matters is potential (ceiling), headroom left to train, how much is revealed yet, and promotion timing (possible from 17 after a minimum stay; one Hattrick year is 112 days). Unrevealed values are unknown, not zero.
 - You can't change anything in Hattrick or in this app. Phrase suggestions as things the manager can do.
 
 How to answer:

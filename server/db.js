@@ -177,6 +177,50 @@ const MIGRATIONS = [
       }
     },
   },
+  {
+    // Youth academy, imported from Hattrick's youth-players CSV export
+    // (services/importYouthCsv.js). Its own tables: youth player IDs are a
+    // separate ID space, and every skill is a current/potential pair where
+    // either half may still be unrevealed (NULL).
+    name: '003_youth_academy',
+    up() {
+      const skillCols = ['keeper', 'defending', 'playmaking', 'winger', 'passing', 'scoring', 'setpieces']
+        .map((s) => `cur_${s} INTEGER, max_${s} INTEGER`).join(', ');
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS youth_players (
+          youth_player_id      INTEGER PRIMARY KEY,
+          name                 TEXT,
+          nationality          TEXT,
+          specialty            TEXT,
+          age_years            INTEGER,
+          age_days             INTEGER,
+          days_until_promotion INTEGER,
+          promotion_age_years  INTEGER,
+          promotion_age_days   INTEGER,
+          injury_weeks         INTEGER DEFAULT 0,
+          warnings             INTEGER DEFAULT 0,
+          last_match_date      TEXT,
+          last_match_rating    REAL,
+          last_match_position  TEXT,
+          ${skillCols},
+          as_of_date           TEXT,
+          first_seen_date      TEXT,
+          is_active            INTEGER DEFAULT 1
+        );
+        CREATE TABLE IF NOT EXISTS youth_snapshots (
+          youth_player_id   INTEGER NOT NULL,
+          snapshot_date     TEXT NOT NULL,
+          age_years         INTEGER,
+          age_days          INTEGER,
+          last_match_date   TEXT,
+          last_match_rating REAL,
+          last_match_position TEXT,
+          ${skillCols},
+          PRIMARY KEY (youth_player_id, snapshot_date)
+        );
+      `);
+    },
+  },
 ];
 
 function numOrNull(v) {

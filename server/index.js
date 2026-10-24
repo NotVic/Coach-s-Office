@@ -13,6 +13,7 @@ const digestRouter = require('./routes/digest');
 const settingsRouter = require('./routes/settings');
 const csvRouter = require('./routes/csv');
 const advisorRouter = require('./routes/advisor');
+const youthRouter = require('./routes/youth');
 const scheduler = require('./services/scheduler');
 
 const app = express();
@@ -49,6 +50,7 @@ app.use('/api/digest', digestRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/csv', csvRouter);
 app.use('/api/advisor', advisorRouter);
+app.use('/api/youth', youthRouter);
 
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   console.error(err);

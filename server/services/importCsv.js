@@ -18,6 +18,7 @@ const { updateSubskills } = require('./subskills');
 const { recordTraining } = require('./trainingLog');
 const { computeCalibration } = require('./calibration');
 const store = require('./store');
+const { isYouthFormat } = require('./importYouthCsv');
 
 // Fixed sentinel, chosen well outside any real Hattrick team ID's range
 // (teams have existed since 1997 and are nowhere near this number), so a
@@ -38,8 +39,9 @@ function logImport(status, message) {
  * @param {string} teamName display name for the dashboard header
  * @param {{cash?: number, weeklyIncome?: number, weeklyExpenses?: number}} [finances]
  *   optional — Hattrick's per-player export has no team-finance columns, so
- *   these come from the Settings form instead if the manager wants the net
- *   income chart to have something to show.
+ *   these come from the Settings form instead. The form only asks for cash
+ *   (the Dashboard derives a weekly cash change from it); income/expenses
+ *   are still accepted by the API but no longer asked for.
  * @param {{trainingTypeId: number, intensityPct: number|null, staminaPct: number|null,
  *          coachLevel5: number|null, assistant1Level: number|null, assistant2Level: number|null}|null} [trainingFocus]
  *   optional — what Hattrick's "Set current training" page currently says,
@@ -52,6 +54,12 @@ function importSquadCsv(csvText, teamName, finances = {}, trainingFocus = null) 
   const { headers, records } = parseCsv(csvText);
   if (headers.length === 0 || records.length === 0) {
     return { ok: false, errors: ['The file is empty, or has no data rows below the header row.'] };
+  }
+
+  // A youth-players export uploaded here would fail on every row (no TSI,
+  // no wage); say what it is instead of listing dozens of row errors.
+  if (isYouthFormat(headers)) {
+    return { ok: false, error: 'This is a youth-academy export. Upload it under "Youth academy CSV" instead.', errors: [] };
   }
 
   const format = detectFormat(headers);

@@ -1,5 +1,6 @@
 const express = require('express');
 const { importSquadCsv } = require('../services/importCsv');
+const { importYouthCsv } = require('../services/importYouthCsv');
 const { exportSquadCsv, templateCsv } = require('../services/exportCsv');
 const { TRAINING_TYPES } = require('../chpp/parse');
 const { db, getSetting } = require('../db');
@@ -99,7 +100,19 @@ router.post('/import', express.json({ limit: '2mb' }), (req, res) => {
 
   const result = importSquadCsv(csv, (teamName || '').trim(), finances, trainingFocus);
   if (!result.ok) {
-    return res.status(400).json({ error: 'The CSV has errors — nothing was imported.', rowErrors: result.errors });
+    return res.status(400).json({ error: result.error || 'The CSV has errors — nothing was imported.', rowErrors: result.errors });
+  }
+  res.json(result);
+});
+
+// Youth academy: Hattrick's youth-players export, as-is. Separate from the
+// squad import above — it touches only the youth tables.
+router.post('/youth-import', express.json({ limit: '2mb' }), (req, res) => {
+  const { csv } = req.body || {};
+  if (!csv || !csv.trim()) return res.status(400).json({ error: 'No CSV content received.' });
+  const result = importYouthCsv(csv);
+  if (!result.ok) {
+    return res.status(400).json({ error: 'The youth CSV has errors — nothing was imported.', rowErrors: result.errors });
   }
   res.json(result);
 });

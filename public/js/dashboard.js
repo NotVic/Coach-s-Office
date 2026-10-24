@@ -90,10 +90,29 @@ function needsAttentionRows(data) {
 
 function renderInsightRow(data) {
   const naRows = needsAttentionRows(data);
-  const netPoints = data.snapshots.map((s) => ({
-    label: s.snapshot_date.slice(5),
-    value: s.weekly_income != null && s.weekly_expenses != null ? s.weekly_income - s.weekly_expenses : null,
-  }));
+  // A CHPP sync reports income and costs exactly. A CSV import only has the
+  // cash balance, so there the week's result is the change in cash since
+  // the previous snapshot, per week elapsed — which includes transfers.
+  let fromCash = false;
+  const netPoints = data.snapshots.map((s, i) => {
+    let value = null;
+    if (s.weekly_income != null && s.weekly_expenses != null) {
+      value = s.weekly_income - s.weekly_expenses;
+    } else {
+      const prev = data.snapshots[i - 1];
+      if (prev && prev.cash != null && s.cash != null) {
+        const weeks = Math.max(1, Math.round((new Date(s.snapshot_date) - new Date(prev.snapshot_date)) / (7 * 24 * 3600 * 1000)));
+        value = Math.round((s.cash - prev.cash) / weeks);
+        fromCash = true;
+      }
+    }
+    return { label: s.snapshot_date.slice(5), value };
+  });
+  const hasNetData = netPoints.some((p) => p.value != null);
+  const netTitle = fromCash ? 'Weekly cash change' : 'Weekly net income';
+  const netCaption = fromCash
+    ? `change in cash between imports, incl. transfers · wage bill ${formatNumber(data.weeklyWageBill)}/wk`
+    : `income − costs, est. wage bill ${formatNumber(data.weeklyWageBill)}/wk`;
 
   return `<div class="grid cols-2">
     <div class="card">
@@ -101,8 +120,10 @@ function renderInsightRow(data) {
       ${naRows.length ? naRows.join('') : needsAttentionEmptyState(data)}
     </div>
     <div class="card chart-card">
-      <div class="card-head"><h3>Weekly net income</h3><span class="muted" style="font-size:12px;">income − costs, est. wage bill ${formatNumber(data.weeklyWageBill)}/wk</span></div>
-      <div class="plot">${Charts.divergingBarChart(netPoints)}</div>
+      <div class="card-head"><h3>${netTitle}</h3><span class="muted" style="font-size:12px;">${netCaption}</span></div>
+      ${hasNetData
+        ? `<div class="plot">${Charts.divergingBarChart(netPoints)}</div>`
+        : `<p class="muted" style="font-size:12.5px;margin:0;">Needs two imports with your cash balance filled in (Settings → CSV import), or a Hattrick connection.</p>`}
     </div>
   </div>`;
 }

@@ -19,7 +19,16 @@ API and helps you answer the questions a manager checks every week:
    field them where this training lands".
 4. **What should I do next?** — next-match prep (opponent snapshot, a
    suggested XI, availability) and a weekly digest of what actually changed.
-5. **What do you make of all this?** — an optional Assistant page backed by
+5. **Who in the youth academy is worth it?** — a Youth Academy page fed by
+   Hattrick's youth-players CSV export (uploaded as-is). Per youth player:
+   each skill as current/potential (Hattrick reveals these gradually, so
+   unrevealed values stay "?" rather than becoming 0), the best known
+   ceiling, headroom left to train, how much is revealed, promotion
+   countdown, a role derived from where the player can end up, and a
+   rule-based call (promote / keep training / low ceiling) with its reason.
+   Academy-wide: where youth training still pays off per skill, and what
+   leveled up or got revealed since the previous import.
+6. **What do you make of all this?** — an optional Assistant page backed by
    Claude (your own Anthropic API key). Ask in plain language, or use the
    quick prompts (weekly advice, is training working, who to sell, next
    match, finances); it looks up the squad, per-player history, team
@@ -116,10 +125,11 @@ are accepted, auto-detected by header row:
 Export (also on the Settings page) always writes the template format —
 works after either a CSV import or a real CHPP sync, handy as a backup or
 for editing offline before re-importing. Per-player exports don't carry
-club finances, so there's an optional "Team finances" section in the
-import form (cash/weekly income/weekly expenses, copied from Hattrick's
-own Club → Finances page) if you want the net income chart to have
-something to show.
+club finances, so the import form has one optional **Cash** field (your
+balance from Hattrick's Club → Finances page). Fill it in on each import:
+the change between imports becomes the Dashboard's weekly cash chart
+(which includes transfers, unlike the exact income − costs a CHPP sync
+provides) and the digest's cash change.
 
 **Each import fully replaces the squad** rather than patching it, so a
 re-import with only some columns filled in blanks out anything left out —

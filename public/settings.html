@@ -18,6 +18,16 @@
 
   <div id="connectCard" class="card" style="margin-bottom:20px;">Loading…</div>
   <div id="csvCard" class="card" style="margin-bottom:20px;">Loading…</div>
+  <div class="card" style="margin-bottom:20px;">
+    <h3 style="margin-bottom:6px;">Youth academy CSV</h3>
+    <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 12px;">
+      Upload Hattrick's youth-players export (<code>youthplayers_….csv</code>) as-is. It only touches the
+      <a href="/youth.html">Youth Academy</a> page, never your senior squad. Each import is kept as a snapshot, so
+      re-import weekly to track level-ups and newly revealed potentials.
+    </p>
+    <div id="youthCsvMsg"></div>
+    <div class="field"><label for="youthCsvFile">Youth CSV file</label><input type="file" id="youthCsvFile" accept=".csv,text/csv"></div>
+  </div>
   <div id="scheduleCard" class="card" style="margin-bottom:20px;">Loading…</div>
   <div id="advisorCard" class="card" style="margin-bottom:20px;">Loading…</div>
 

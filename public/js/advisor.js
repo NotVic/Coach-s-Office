@@ -14,6 +14,7 @@ const QUICK_PROMPTS = [
   { label: 'Who to sell?', text: 'Which players should I consider selling, and which should I keep or develop? Base it on age, skills, wage and how their value has been trending.' },
   { label: 'Next match', text: 'Help me prepare for the next match: how do we compare, who is unavailable, and what lineup would you field?' },
   { label: 'Finances', text: 'How are my finances trending, and is my wage bill sustainable?' },
+  { label: 'Youth academy', text: 'Go through my youth academy: who should I promote, who should I keep training, who should I release, and what should my youth training focus on?' },
 ];
 
 let conversationId = null;
