@@ -134,111 +134,200 @@ async function disconnect() {
 
 // ---- CSV import/export card -----------------------------------------
 
+// ---- Weekly update card ------------------------------------------------
+//
+// One upload for the weekly routine: drop the senior players export and/or
+// the youth players export together (each is recognized by its header row),
+// plus the few things the exports don't carry (cash, senior training, youth
+// training). Imports run senior first, then youth.
+
+const STALE_DAYS = 7;
+// Files waiting to be imported, by kind: { name, text }.
+let pendingFiles = {};
+// Youth training menu, and the youth academy's state (last import date,
+// last reported training) for the prefill.
+let youthTrainingTypes = [];
+let youthStatus = {};
+
+function daysAgo(iso) {
+  if (!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / (24 * 3600 * 1000));
+}
+
+function lastImportLine() {
+  const parts = [];
+  const senior = daysAgo(status.lastSyncAt);
+  const youth = daysAgo(youthStatus.asOfDate);
+  parts.push(`Senior squad: ${senior == null ? 'never imported' : `${formatDate(status.lastSyncAt)} (${senior === 0 ? 'today' : `${senior} day${senior === 1 ? '' : 's'} ago`})`}`);
+  parts.push(`Youth academy: ${youth == null ? 'never imported' : `${formatDate(youthStatus.asOfDate)} (${youth === 0 ? 'today' : `${youth} day${youth === 1 ? '' : 's'} ago`})`}`);
+  const stale = (senior != null && senior >= STALE_DAYS) || (youth != null && youth >= STALE_DAYS);
+  return `<div class="banner ${stale ? 'error' : 'info'}" style="margin-bottom:14px;">
+    ${stale ? '<b>Time for the weekly update.</b> ' : ''}Last import · ${parts.join(' · ')}
+  </div>`;
+}
+
+/** Which export is this? Youth exports have a promotion countdown column. */
+function detectKind(text) {
+  const header = text.split(/\r?\n/, 1)[0] || '';
+  return header.includes('Days until you can promote') ? 'youth' : 'senior';
+}
+
+function youthTrainingOptions(selectedId) {
+  const groups = [...new Set(youthTrainingTypes.map((t) => t.group))];
+  return '<option value="">— not set —</option>' + groups.map((g) => `<optgroup label="${esc(g)}">${youthTrainingTypes
+    .filter((t) => t.group === g)
+    .map((t) => `<option value="${t.id}" ${t.id === selectedId ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</optgroup>`).join('');
+}
+
+function renderPendingFiles() {
+  const el = document.getElementById('pendingFiles');
+  const rows = Object.entries(pendingFiles).map(([kind, f]) => `<span class="chip good">${kind === 'youth' ? 'Youth academy' : 'Senior squad'}: ${esc(f.name)}</span>`);
+  el.innerHTML = rows.length ? rows.join(' ') : '';
+  document.getElementById('importBtn').disabled = !rows.length;
+}
+
+async function addFiles(fileList) {
+  for (const file of fileList) {
+    const text = await file.text();
+    pendingFiles[detectKind(text)] = { name: file.name, text };
+  }
+  renderPendingFiles();
+}
+
 function renderCsvCard() {
   const isCsvSourced = status.dataSource === 'csv';
+  const yt = youthStatus.training || {};
   csvCard.innerHTML = `
-    <h3 style="margin-bottom:6px;">Senior squad</h3>
-    <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 10px;">
-      Upload Hattrick's players export as-is (recognized automatically), or
-      <a href="/api/csv/template">download our simpler template ↓</a> to type a squad by hand.
-      <b>Each import fully replaces the squad</b>: columns left out are blanked, not merged.
+    <h3 style="margin-bottom:6px;">Weekly update</h3>
+    <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 12px;">
+      Export your players and youth players from Hattrick and drop both files here. Each file is recognized on its own,
+      so one of the two is fine too. <b>A squad import fully replaces the squad</b>: columns left out are blanked, not merged.
+      Typing a squad by hand? <a href="/api/csv/template">Download our simpler template ↓</a>
     </p>
-    ${isCsvSourced && CHPP_ENABLED ? `
-      <div class="banner info" style="margin-bottom:10px;">
-        Showing CSV-imported data for "<b>${esc(status.teamName || 'your squad')}</b>". Connecting to Hattrick (under
-        Settings below) would replace it with your real, synced squad.
-      </div>
-    ` : ''}
+    ${lastImportLine()}
     <div id="csvError"></div>
-    <div class="field"><label for="csvTeamName">Team name</label>
-      <input type="text" id="csvTeamName" value="${esc(csvDefaults.teamName || (isCsvSourced ? (status.teamName || '') : ''))}" placeholder="e.g. My Squad">
-    </div>
-    <div class="field"><label for="csvFile">CSV file</label><input type="file" id="csvFile" accept=".csv,text/csv"></div>
-    <div class="field"><label for="csvCash">Cash (optional)</label>
-      <input type="text" id="csvCash" inputmode="numeric" placeholder="e.g. 500000">
-      <span class="hint">
-        Your current cash balance, from Hattrick's Club → Finances page. Fill it in on every import: the change
-        between imports becomes the Dashboard's weekly cash chart and the digest's cash change.
-        ${csvDefaults.cash != null ? `Last import: ${formatNumber(csvDefaults.cash)}.` : ''}
-      </span>
-    </div>
-    <details style="margin-bottom:14px;" ${csvDefaults.trainingTypeId != null ? 'open' : ''}>
-      <summary style="cursor:pointer;font-size:13px;font-weight:600;">Training focus (optional)</summary>
-      <p class="muted" style="font-size:12px;margin:6px 0;">
-        Copy this from Hattrick's own "Set current training" page.
-        ${csvDefaults.trainingTypeId != null
-          ? '<b>Prefilled from your last import</b> — adjust only what changed in Hattrick since then.'
-          : 'This is a snapshot of what you report at import time, not something the app keeps in sync on its own.'}
-        Setting "Currently training" back to "— not set —" clears the stored focus.
-      </p>
-      <div class="field"><label for="csvTrainingType">Currently training</label>
-        <select id="csvTrainingType">
-          <option value="">— not set —</option>
-          ${trainingTypes.map((t) => `<option value="${t.id}" ${t.id === csvDefaults.trainingTypeId ? 'selected' : ''}>${t.label}</option>`).join('')}
-        </select>
-        <span class="hint">Pick the exact type from Hattrick's "Set current training" dropdown — combined types (Wing Attacks, Shooting, …) train at different speeds than their pure counterparts.</span>
+    <label class="dropzone" id="dropzone">
+      <input type="file" id="csvFiles" accept=".csv,text/csv" multiple hidden>
+      <b>Drop your CSV files here</b> or click to choose
+      <span class="muted">players_….csv and/or youthplayers_….csv</span>
+    </label>
+    <div id="pendingFiles" style="margin:10px 0 4px;"></div>
+
+    <div class="upload-cols">
+      <div>
+        <h4 class="upload-sub">Senior squad</h4>
+        <div class="field"><label for="csvTeamName">Team name</label>
+          <input type="text" id="csvTeamName" value="${esc(csvDefaults.teamName || (isCsvSourced ? (status.teamName || '') : ''))}" placeholder="e.g. My Squad">
+        </div>
+        <div class="field"><label for="csvCash">Cash</label>
+          <input type="text" id="csvCash" inputmode="numeric" placeholder="e.g. 500000">
+          <span class="hint">
+            Your current balance, from Club → Finances. The change between imports becomes the Dashboard's weekly cash chart.
+            ${csvDefaults.cash != null ? `Last import: ${formatNumber(csvDefaults.cash)}.` : ''}
+          </span>
+        </div>
+        <details style="margin-bottom:14px;" ${csvDefaults.trainingTypeId != null ? '' : 'open'}>
+          <summary style="cursor:pointer;font-size:13px;font-weight:600;">Training focus${csvDefaults.trainingTypeId != null
+            ? ` <span class="muted" style="font-weight:400;">· ${esc(trainingTypes.find((t) => t.id === csvDefaults.trainingTypeId)?.label ?? '')}, prefilled from your last import</span>` : ''}</summary>
+          <p class="muted" style="font-size:12px;margin:6px 0;">
+            From Hattrick's "Set current training" page; adjust only what changed. "— not set —" clears the stored focus.
+          </p>
+          <div class="field"><label for="csvTrainingType">Currently training</label>
+            <select id="csvTrainingType">
+              <option value="">— not set —</option>
+              ${trainingTypes.map((t) => `<option value="${t.id}" ${t.id === csvDefaults.trainingTypeId ? 'selected' : ''}>${t.label}</option>`).join('')}
+            </select></div>
+          <div class="field"><label for="csvTrainingIntensity">Training intensity %</label><input type="text" id="csvTrainingIntensity" inputmode="numeric" value="${csvDefaults.trainingIntensity ?? ''}" placeholder="e.g. 96"></div>
+          <div class="field"><label for="csvTrainingStamina">Stamina training %</label><input type="text" id="csvTrainingStamina" inputmode="numeric" value="${csvDefaults.trainingStaminaPct ?? ''}" placeholder="e.g. 14"></div>
+          <div class="field"><label for="csvCoachLevel">Coach skill (out of 5, as shown in Hattrick)</label>
+            <select id="csvCoachLevel">
+              <option value="">— not set (assumes 4/5, Solid) —</option>
+              ${[1, 2, 3, 4, 5].map((v) => `<option value="${v}" ${v === csvDefaults.coachLevel5 ? 'selected' : ''}>${v}/5 (${['Weak', 'Inadequate', 'Passable', 'Solid', 'Excellent'][v - 1]})</option>`).join('')}
+            </select></div>
+          <div class="field"><label for="csvAssistant1">Assistant coach 1 level (out of 5)</label>
+            <select id="csvAssistant1"><option value="">— none —</option>
+              ${[1, 2, 3, 4, 5].map((v) => `<option value="${v}" ${v === csvDefaults.assistant1Level ? 'selected' : ''}>${v}/5</option>`).join('')}
+            </select></div>
+          <div class="field"><label for="csvAssistant2">Assistant coach 2 level (out of 5)</label>
+            <select id="csvAssistant2"><option value="">— none —</option>
+              ${[1, 2, 3, 4, 5].map((v) => `<option value="${v}" ${v === csvDefaults.assistant2Level ? 'selected' : ''}>${v}/5</option>`).join('')}
+            </select></div>
+        </details>
       </div>
-      <div class="field"><label for="csvTrainingIntensity">Training intensity %</label><input type="text" id="csvTrainingIntensity" inputmode="numeric" value="${csvDefaults.trainingIntensity ?? ''}" placeholder="e.g. 96"></div>
-      <div class="field"><label for="csvTrainingStamina">Stamina training %</label><input type="text" id="csvTrainingStamina" inputmode="numeric" value="${csvDefaults.trainingStaminaPct ?? ''}" placeholder="e.g. 14"></div>
-      <div class="field"><label for="csvCoachLevel">Coach skill (out of 5, as shown in Hattrick)</label>
-        <select id="csvCoachLevel">
-          <option value="">— not set (assumes 4/5, Solid) —</option>
-          ${[1, 2, 3, 4, 5].map((v) => `<option value="${v}" ${v === csvDefaults.coachLevel5 ? 'selected' : ''}>${v}/5 (${['Weak', 'Inadequate', 'Passable', 'Solid', 'Excellent'][v - 1]})</option>`).join('')}
-        </select>
-        <span class="hint">From Club → Staff — the trainer-skill bar out of 5. Feeds the modeled training estimate.</span></div>
-      <div class="field"><label for="csvAssistant1">Assistant coach 1 level (out of 5)</label>
-        <select id="csvAssistant1">
-          <option value="">— none —</option>
-          ${[1, 2, 3, 4, 5].map((v) => `<option value="${v}" ${v === csvDefaults.assistant1Level ? 'selected' : ''}>${v}/5</option>`).join('')}
-        </select></div>
-      <div class="field"><label for="csvAssistant2">Assistant coach 2 level (out of 5)</label>
-        <select id="csvAssistant2">
-          <option value="">— none —</option>
-          ${[1, 2, 3, 4, 5].map((v) => `<option value="${v}" ${v === csvDefaults.assistant2Level ? 'selected' : ''}>${v}/5</option>`).join('')}
-        </select></div>
-    </details>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button class="pill-btn primary" id="importCsvBtn" type="button">Import CSV</button>
+      <div>
+        <h4 class="upload-sub">Youth academy</h4>
+        <div class="field"><label for="youthPrimary">Primary training</label>
+          <select id="youthPrimary">${youthTrainingOptions(yt.primary?.typeId)}</select></div>
+        <div class="field"><label for="youthSecondary">Secondary training</label>
+          <select id="youthSecondary">${youthTrainingOptions(yt.secondary?.typeId)}</select>
+          <span class="hint">As set on Hattrick's youth academy training page.${yt.reportedOn ? ` Prefilled from your import of ${formatDate(yt.reportedOn)}.` : ''}</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button class="pill-btn primary" id="importBtn" type="button" disabled>Import</button>
       ${status.hasSquadData ? '<a class="pill-btn" href="/api/csv/export">Export current squad</a>' : ''}
     </div>
   `;
-  document.getElementById('importCsvBtn').addEventListener('click', importCsv);
+
+  const zone = document.getElementById('dropzone');
+  const input = document.getElementById('csvFiles');
+  input.addEventListener('change', () => addFiles(input.files));
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('over');
+    addFiles(e.dataTransfer.files);
+  });
+  document.getElementById('importBtn').addEventListener('click', importFiles);
+  renderPendingFiles();
 }
 
-async function importCsv() {
-  const fileInput = document.getElementById('csvFile');
-  const teamName = document.getElementById('csvTeamName').value.trim();
-  // Thousands separators as Hattrick shows them ("1 234 567" / "1.234.567") are fine to paste.
-  const cash = document.getElementById('csvCash').value.replace(/[\s.,']/g, '');
-  const trainingTypeId = document.getElementById('csvTrainingType').value;
-  const trainingIntensity = document.getElementById('csvTrainingIntensity').value.trim();
-  const trainingStaminaPct = document.getElementById('csvTrainingStamina').value.trim();
-  const coachLevel5 = document.getElementById('csvCoachLevel').value;
-  const assistant1Level = document.getElementById('csvAssistant1').value;
-  const assistant2Level = document.getElementById('csvAssistant2').value;
-  const file = fileInput.files[0];
-  const btn = document.getElementById('importCsvBtn');
-  if (!file) return showError('csvError', 'Choose a CSV file first.');
-
+async function importFiles() {
+  const btn = document.getElementById('importBtn');
+  const done = [];
   btn.disabled = true;
   btn.textContent = 'Importing…';
   try {
-    const text = await file.text();
-    const result = await apiPost('/api/csv/import', {
-      csv: text, teamName, cash,
-      trainingTypeId, trainingIntensity, trainingStaminaPct, coachLevel5, assistant1Level, assistant2Level,
-    });
-    [status, csvDefaults] = await Promise.all([apiGet('/api/chpp/status'), apiGet('/api/csv/defaults')]);
+    if (pendingFiles.senior) {
+      const result = await apiPost('/api/csv/import', {
+        csv: pendingFiles.senior.text,
+        teamName: document.getElementById('csvTeamName').value.trim(),
+        // Thousands separators as Hattrick shows them ("1 234 567" / "1.234.567") are fine to paste.
+        cash: document.getElementById('csvCash').value.replace(/[\s.,']/g, ''),
+        trainingTypeId: document.getElementById('csvTrainingType').value,
+        trainingIntensity: document.getElementById('csvTrainingIntensity').value.trim(),
+        trainingStaminaPct: document.getElementById('csvTrainingStamina').value.trim(),
+        coachLevel5: document.getElementById('csvCoachLevel').value,
+        assistant1Level: document.getElementById('csvAssistant1').value,
+        assistant2Level: document.getElementById('csvAssistant2').value,
+      });
+      delete pendingFiles.senior;
+      done.push(`${result.playerCount} senior players`);
+    }
+    if (pendingFiles.youth) {
+      const result = await apiPost('/api/csv/youth-import', {
+        csv: pendingFiles.youth.text,
+        primaryTypeId: document.getElementById('youthPrimary').value,
+        secondaryTypeId: document.getElementById('youthSecondary').value,
+      });
+      delete pendingFiles.youth;
+      done.push(`${result.playerCount} youth players${result.released ? ` (${result.released} no longer in the academy)` : ''}`);
+    }
+    [status, csvDefaults, youthStatus] = await Promise.all([apiGet('/api/chpp/status'), apiGet('/api/csv/defaults'), apiGet('/api/youth')]);
     renderCsvCard();
-    const formatNote = result.format === 'hattrick' ? ' (recognized as a Hattrick players export)' : ' (template format)';
-    document.getElementById('csvError').innerHTML =
-      `<div class="banner good">Imported ${result.playerCount} players${formatNote}. <a href="/index.html">Go to Dashboard →</a></div>`;
+    document.getElementById('csvError').innerHTML = `<div class="banner good">
+      Imported ${done.join(' and ')}. <a href="/index.html">Dashboard →</a>
+      · <a href="/advisor.html?ask=weekly">Ask the assistant for this week's summary →</a>
+    </div>`;
   } catch (err) {
+    // Whatever imported before the failure stays imported; say which file failed.
     const rowErrors = err.data?.rowErrors || [];
-    showError('csvError', [err.message, ...rowErrors.map((e) => `• ${e}`)]);
-  } finally {
+    const which = pendingFiles.senior ? 'senior squad' : 'youth academy';
+    showError('csvError', [`${done.length ? `Imported ${done.join(' and ')}, but the ` : 'The '}${which} file failed: ${err.message}`, ...rowErrors.map((e) => `• ${e}`)]);
     btn.disabled = false;
-    btn.textContent = 'Import CSV';
+    btn.textContent = 'Import';
   }
 }
 
@@ -305,13 +394,6 @@ async function saveSchedule() {
     msgEl.innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
   }
 }
-
-// ---- Youth academy CSV card (form shared with the Youth page) ----------
-
-const youthImportForm = document.getElementById('youthImportForm');
-mountYouthImportForm(youthImportForm).catch((err) => {
-  youthImportForm.innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
-});
 
 // ---- Assistant (Anthropic API key) card --------------------------------
 
@@ -385,16 +467,19 @@ async function updateAnthropicKey(body, successText) {
 
 async function load() {
   try {
-    let scheduleRes, typesRes;
-    [status, scheduleRes, typesRes, csvDefaults, advisorStatus] = await Promise.all([
+    let scheduleRes, typesRes, youthTypesRes;
+    [status, scheduleRes, typesRes, csvDefaults, advisorStatus, youthTypesRes, youthStatus] = await Promise.all([
       apiGet('/api/chpp/status'),
       apiGet('/api/settings/schedule'),
       apiGet('/api/settings/training-types'),
       apiGet('/api/csv/defaults'),
       apiGet('/api/advisor/status'),
+      apiGet('/api/settings/youth-training-types'),
+      apiGet('/api/youth'),
     ]);
     schedule = scheduleRes.schedule;
     trainingTypes = typesRes.types;
+    youthTrainingTypes = youthTypesRes.types;
     renderCsvCard();
     renderAdvisorCard();
     if (CHPP_ENABLED) {

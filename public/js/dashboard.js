@@ -194,8 +194,20 @@ function csvSourceBanner(data) {
   </div>`;
 }
 
+// The trends and training models learn from weekly snapshots; a missed week
+// is a gap in every one of them.
+function staleBanner(data) {
+  if (data.dataSource !== 'csv' || !data.lastSyncAt) return '';
+  const days = Math.floor((Date.now() - new Date(data.lastSyncAt).getTime()) / (24 * 3600 * 1000));
+  if (days < 7) return '';
+  return `<div class="banner error" style="margin-bottom:16px;">
+    <b>Last upload ${days} days ago.</b> Time for the weekly update, so the trends and training models keep learning.
+    <a href="/settings.html">Upload now →</a>
+  </div>`;
+}
+
 function render(data) {
-  content.innerHTML = csvSourceBanner(data) + renderStatBar(data) + renderCharts(data)
+  content.innerHTML = staleBanner(data) + csvSourceBanner(data) + renderStatBar(data) + renderCharts(data)
     + `<div class="halfway"></div>` + renderInsightRow(data)
     + renderSquad(data);
   wireFilter(data);

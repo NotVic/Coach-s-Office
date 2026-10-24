@@ -203,6 +203,19 @@ svg.chart .dot { fill: var(--sb-surface); stroke: var(--sb-accent); stroke-width
   .settings-grid .field { max-width: 420px; }
 }
 
+/* Weekly update: drop zone + senior/youth columns */
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 16px; cursor: pointer;
+  border: 1.5px dashed var(--sb-border-strong); border-radius: var(--sb-radius-md); background: var(--sb-surface-sunken);
+  font-size: 13.5px; text-align: center;
+}
+.dropzone .muted { font-size: 12px; }
+.dropzone.over, .dropzone:hover { border-color: var(--sb-accent); background: var(--sb-accent-tint-10); }
+.upload-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 14px 0 6px; }
+.upload-cols .field { max-width: none; }
+.upload-sub { font-size: 14px; margin: 0 0 10px; }
+@media (max-width: 900px) { .upload-cols { grid-template-columns: 1fr; } }
+
 /* ---- Youth academy ---- */
 .ytable td.yskill { text-align: center; white-space: nowrap; }
 .ytable td.yskill.unknown { color: var(--sb-text-muted); }
