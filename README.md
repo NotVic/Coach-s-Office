@@ -27,7 +27,14 @@ API and helps you answer the questions a manager checks every week:
    countdown, a role derived from where the player can end up, and a
    rule-based call (promote / keep training / low ceiling) with its reason.
    Academy-wide: where youth training still pays off per skill, and what
-   leveled up or got revealed since the previous import.
+   leveled up or got revealed since the previous import. The upload form
+   also takes the academy's primary/secondary training, which feeds a
+   **self-learning youth training model**: Schum's formula as a starting
+   point (secondary training at ~75%, last match position for how much
+   training a player gets), corrected by a factor learned from this
+   academy's own observed level-ups the same way the senior model is
+   calibrated. It estimates weeks to the next level and to the known
+   potential per trained skill, and whether that lands before age 19.
 6. **What do you make of all this?** — an optional Assistant page backed by
    Claude (your own Anthropic API key). Ask in plain language, or use the
    quick prompts (weekly advice, is training working, who to sell, next

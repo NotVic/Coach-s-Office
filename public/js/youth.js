@@ -91,6 +91,61 @@ function changesSection(data) {
   </div>`;
 }
 
+// Per trained skill: next level and time to the known potential, from the
+// self-learning model (services/youthTraining.js). Always a range.
+function outlookCell(p) {
+  if (!p.outlook.length) return '<span class="muted">—</span>';
+  return p.outlook.map((o) => {
+    const tag = `${SHORT[o.skillKey]}${o.slot === 'primary' ? '●' : '○'}`;
+    if (o.status === 'maxed') return `<div><span class="muted">${tag}</span> maxed</div>`;
+    if (o.status !== 'ok') return `<div><span class="muted">${tag}</span> <span class="muted" title="Last match position gets no training from this type">not reached</span></div>`;
+    const title = [
+      `${o.skill} ${o.current} → ${o.current + 1}: ~${o.weeksPerLevel} weeks per level`,
+      o.bankedPct != null ? `~${o.bankedPct}% banked since the last level-up` : 'progress since the last level-up unknown, so the range is wide',
+      o.observed ? `observed in this player's own history: ~${o.observed.low}–${o.observed.high} wk` : null,
+      ...o.assumptions,
+    ].filter(Boolean).join('\n');
+    const pot = o.toPotential
+      ? ` · max ~${o.toPotential.low}–${o.toPotential.high} wk${{ yes: ' ✓', tight: ' <span class="chip warning">tight</span>', no: ' <span class="chip serious">after 19</span>' }[o.toPotential.beforeAgeOut]}`
+      : '';
+    return `<div title="${esc(title)}"><span class="muted">${tag}</span> next ~${o.nextLevel.low}–${o.nextLevel.high} wk${pot}</div>`;
+  }).join('');
+}
+
+function modelSection(data) {
+  const c = data.calibration;
+  if (!data.training?.primary && !data.training?.secondary) return '';
+  const head = '<h3 style="margin-bottom:4px;">Youth training model';
+  if (!c || !c.runs) {
+    return `<div class="card" style="margin-top:16px;">${head}</h3>
+      <p class="muted" style="font-size:12.5px;margin:0;">
+        Not calibrated yet: estimates use the senior-squad training formula as a starting point, so treat them as
+        rough. The model learns from your own academy as soon as a player levels up <b>twice</b> in a trained skill
+        between imports (the first level-up only marks the start). Keep importing weekly, with the training filled in.
+      </p></div>`;
+  }
+  const pct = Math.round((c.factor - 1) * 100);
+  const verdict = Math.abs(pct) < 5
+    ? 'Your youth players train about as fast as the starting formula predicts.'
+    : pct > 0
+      ? `Your youth players train about ${pct}% faster than the starting formula predicts; estimates are shortened to match.`
+      : `Your youth players train about ${-pct}% slower than the starting formula predicts; estimates are lengthened to match.`;
+  const runs = c.recent.map((r) => `<div class="player-row">
+      <span>${esc(r.name)} · ${esc(r.skill)} <span class="muted" style="font-size:11.5px;">${r.slot} · ${formatDate(r.from)} → ${formatDate(r.to)}</span></span>
+      <span class="right">+${r.levels} seen · ${r.modeled} modeled</span>
+    </div>`).join('');
+  return `<div class="card" style="margin-top:16px;">
+    ${head} <span class="chip ${c.confidence === 'high' ? 'good' : c.confidence === 'medium' ? 'gold' : 'warning'}">${c.confidence} confidence</span></h3>
+    <p style="font-size:13px;margin:0 0 6px;"><b>×${c.factor.toFixed(2)}</b>: ${verdict}</p>
+    <p class="muted" style="font-size:11.5px;margin:0 0 8px;">
+      Learned from ${c.runs} level-up${c.runs === 1 ? '' : 's'} across ${c.players} player${c.players === 1 ? '' : 's'}:
+      ${c.levelsObserved} level${c.levelsObserved === 1 ? '' : 's'} actually gained where the model, replayed with the training
+      reported at the time, expected ${c.levelsModeled}. Few samples are pulled toward ×1.00.
+    </p>
+    ${runs}
+  </div>`;
+}
+
 function tableSection(data) {
   const rows = data.players.map((p) => `<tr>
     <td style="font-family:inherit;">
@@ -104,6 +159,7 @@ function tableSection(data) {
     <td>${ceilingCell(p)}</td>
     ${p.skills.map(skillCell).join('')}
     <td>${p.revealedPct}%</td>
+    <td class="youtlook">${outlookCell(p)}</td>
     <td>${p.lastMatch.rating != null ? `${p.lastMatch.rating}★` : '—'}${p.lastMatch.position ? ` <span class="muted">${esc(p.lastMatch.position)}</span>` : ''}</td>
     <td style="font-family:inherit;"><span class="chip ${p.verdict.tone || ''}">${esc(p.verdict.label)}</span></td>
   </tr>`).join('');
@@ -120,7 +176,7 @@ function tableSection(data) {
           const as = data.players[0]?.skills.find((x) => x.key === key)?.trained;
           return `<th${as ? ` class="ytrained" title="${as} training"` : ''}>${s}${as ? (as === 'primary' ? ' ●' : ' ○') : ''}</th>`;
         }).join('')}
-        <th>Known</th><th>Last match</th><th>Call</th>
+        <th>Known</th><th>Training outlook</th><th>Last match</th><th>Call</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
@@ -132,6 +188,9 @@ function tableSection(data) {
     is still hidden. <b>Role</b> is derived from where the player can end up, not where they last played. Promotion is
     possible from 17 after a minimum stay in the academy (the CSV's own countdown, rolled forward from the import date);
     ages use Hattrick's 112-day year. The "19 soon" flag mirrors community tools such as Hattrick Youthclub.
+    <b>Training outlook</b> covers the skills your academy trains now (● primary, ○ secondary): weeks to the next level
+    and to the known potential, from the youth training model above. It uses the last match position for how much
+    training a player gets; hover a line for the details and assumptions.
   </p>`;
 }
 
@@ -149,7 +208,7 @@ function render(data) {
     + (t && (t.primary || t.secondary)
       ? ` · training ${t.primary?.label ?? '—'} / ${t.secondary?.label ?? '—'}`
       : ' · youth training not reported');
-  content.innerHTML = tiles(data) + headroomSection(data) + changesSection(data) + tableSection(data);
+  content.innerHTML = tiles(data) + headroomSection(data) + modelSection(data) + changesSection(data) + tableSection(data);
 }
 
 async function load() {

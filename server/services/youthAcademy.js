@@ -12,6 +12,7 @@
 const { db } = require('../db');
 const { skillLevelName, derivePositionLine, TRAINING_TYPES } = require('../chpp/parse');
 const { YOUTH_SKILLS } = require('./importYouthCsv');
+const { computeYouthCalibration, predictPlayer, getYouthTrainingLog, historyByPlayer } = require('./youthTraining');
 
 const DAYS_PER_YEAR = 112;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -110,7 +111,13 @@ function verdictFor(p) {
     const trainedNote = p.trainedHeadroom == null ? ''
       : p.trainedHeadroom > 0 ? `, +${p.trainedHeadroom} of it in the skills you're training`
         : ', but none of it in the skills you\'re training now';
-    return { key: 'train_on', tone: 'gold', label: 'Promotable, keep training', why: `Promotable now, but still +${knownHeadroom} known levels of headroom${knownPairs ? '' : ' (no potentials revealed yet)'}${trainedNote}.` };
+    // And whether the training model expects it to be reached in time.
+    const m = p.maxOut;
+    const modelNote = !m ? ''
+      : m.beforeAgeOut === 'no'
+        ? ` The training model expects ${m.skill} to need ~${m.low}–${m.high} more weeks, past age 19, so every week left still counts.`
+        : ` The training model expects the trained skills to max out in ~${m.low}–${m.high} weeks${m.beforeAgeOut === 'tight' ? ' (tight before 19)' : ''}.`;
+    return { key: 'train_on', tone: 'gold', label: 'Promotable, keep training', why: `Promotable now, but still +${knownHeadroom} known levels of headroom${knownPairs ? '' : ' (no potentials revealed yet)'}${trainedNote}.${modelNote}` };
   }
   if (ceiling === 'low') {
     return { key: 'release_candidate', tone: 'serious', label: 'Low ceiling', why: `Best known ceiling is ${bestText}${evidence}; consider releasing to make room for a better prospect.` };
@@ -162,8 +169,9 @@ function buildYouthAcademy({ now = Date.now() } = {}) {
   const rows = db.prepare('SELECT * FROM youth_players WHERE is_active = 1').all();
   if (rows.length === 0) return { hasYouth: false, training };
   const isTraining = Boolean(training?.primary || training?.secondary);
-
-  const snapStmt = db.prepare('SELECT * FROM youth_snapshots WHERE youth_player_id = ? ORDER BY snapshot_date ASC');
+  const log = getYouthTrainingLog();
+  const history = historyByPlayer();
+  const calibration = computeYouthCalibration(log, history);
 
   const players = rows.map((row) => {
     const elapsed = daysSince(row.as_of_date, now);
@@ -179,7 +187,7 @@ function buildYouthAcademy({ now = Date.now() } = {}) {
     const daysUntilPromotion = row.days_until_promotion == null ? null : Math.max(0, row.days_until_promotion - elapsed);
     const ageOutAt = AGE_OUT_YEARS * DAYS_PER_YEAR;
 
-    const snapshots = snapStmt.all(row.youth_player_id);
+    const snapshots = history.get(row.youth_player_id) ?? [];
     const changes = snapshots.length >= 2 ? compareSnapshots(snapshots.at(-2), snapshots.at(-1)) : null;
     // Role by where the player can end up (potential, falling back to current).
     const roleBasis = Object.fromEntries(skills.map((s) => [s.key, s.potential ?? s.current ?? 0]));
@@ -212,6 +220,16 @@ function buildYouthAcademy({ now = Date.now() } = {}) {
       trackedSince: row.first_seen_date,
       snapshotCount: snapshots.length,
     };
+    p.outlook = isTraining
+      ? predictPlayer(
+        { skills, ageYears: ageTotal / DAYS_PER_YEAR, position: row.last_match_position, daysUntilAgeOut: p.daysUntilAgeOut },
+        snapshots, log.at(-1), calibration.factor, training.since, now,
+      )
+      : [];
+    // The slowest trained skill decides when the player is "done" here.
+    p.maxOut = p.outlook
+      .filter((o) => o.toPotential)
+      .reduce((a, o) => (a == null || o.toPotential.high > a.high ? { skill: o.skill, ...o.toPotential } : a), null);
     p.verdict = verdictFor(p);
     return p;
   });
@@ -238,6 +256,7 @@ function buildYouthAcademy({ now = Date.now() } = {}) {
     asOfDate: asOf,
     training,
     trainingAdvice: trainingAdvice(training, trainingHeadroom),
+    calibration,
     summary: {
       playerCount: players.length,
       promotableNow: players.filter((p) => p.promotableNow).length,
