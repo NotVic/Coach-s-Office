@@ -193,7 +193,7 @@ const TOOLS = [
   {
     name: 'get_youth_academy',
     label: 'Looking at the youth academy',
-    description: 'The youth academy (imported from Hattrick\'s youth CSV): per youth player the age, days until promotable, each skill as current and potential (null = not revealed yet, maxedOut = no more to train), best known ceiling, known headroom, how much is revealed, a suggested role, last match, what changed since the previous import, and the app\'s rule-based call (promote / keep training / low ceiling). Also where youth training would still pay off per skill.',
+    description: 'The youth academy (imported from Hattrick\'s youth CSV): per youth player the age, days until promotable, each skill as current and potential (null = not revealed yet, maxedOut = no more to train), best known ceiling, known headroom, how much is revealed, a suggested role, last match, what changed since the previous import, and the app\'s rule-based call (promote / keep training / low ceiling). Also the academy\'s primary/secondary training as reported at import, where youth training would still pay off per skill (with which skills are trained now), and notes on whether the training matches that headroom.',
     input_schema: NO_INPUT,
     run() {
       return buildYouthAcademy();

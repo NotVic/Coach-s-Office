@@ -10,7 +10,7 @@
 // "days until you can promote" are as of the import date, so they're
 // rolled forward by the days elapsed since.
 const { db } = require('../db');
-const { skillLevelName, derivePositionLine } = require('../chpp/parse');
+const { skillLevelName, derivePositionLine, TRAINING_TYPES } = require('../chpp/parse');
 const { YOUTH_SKILLS } = require('./importYouthCsv');
 
 const DAYS_PER_YEAR = 112;
@@ -27,13 +27,51 @@ function daysSince(isoDate, now) {
   return Math.max(0, Math.floor((now - new Date(`${isoDate}T00:00:00Z`).getTime()) / MS_PER_DAY));
 }
 
-function skillsOf(row) {
+function trainingType(id) {
+  const type = id != null ? TRAINING_TYPES[id] : null;
+  // Youth skill keys have no "skill_" prefix (see importYouthCsv.js).
+  return type ? { typeId: id, label: type.label, skillKey: type.skillKey.replace('skill_', '') } : null;
+}
+
+/**
+ * The academy's training as reported at the latest youth import, and since
+ * when that same primary/secondary pair has been reported without a break.
+ */
+function readYouthTraining() {
+  const log = db.prepare('SELECT * FROM youth_training_log ORDER BY log_date DESC').all();
+  if (!log.length) return null;
+  const latest = log[0];
+  let since = latest.log_date;
+  for (const row of log) {
+    if (row.primary_type_id !== latest.primary_type_id || row.secondary_type_id !== latest.secondary_type_id) break;
+    since = row.log_date;
+  }
+  const primary = trainingType(latest.primary_type_id);
+  const secondary = trainingType(latest.secondary_type_id);
+  return {
+    primary,
+    secondary,
+    reportedOn: latest.log_date,
+    since,
+    // Training the same skill twice mostly wastes the secondary slot.
+    sameSkill: Boolean(primary && secondary && primary.skillKey === secondary.skillKey),
+  };
+}
+
+function trainedAs(key, training) {
+  if (training?.primary?.skillKey === key) return 'primary';
+  if (training?.secondary?.skillKey === key) return 'secondary';
+  return null;
+}
+
+function skillsOf(row, training) {
   return YOUTH_SKILLS.map(([key]) => {
     const cur = row[`cur_${key}`];
     const max = row[`max_${key}`];
     return {
       key,
       label: SKILL_LABEL[key],
+      trained: trainedAs(key, training),
       current: cur,
       potential: max,
       currentName: skillLevelName(cur),
@@ -68,7 +106,11 @@ function verdictFor(p) {
     if (daysUntilAgeOut != null && daysUntilAgeOut <= SOON_DAYS) {
       return { key: 'promote_soon', tone: 'warning', label: 'Promote soon', why: `Still +${knownHeadroom} known levels to gain, but turns 19 in ~${daysUntilAgeOut} days.` };
     }
-    return { key: 'train_on', tone: 'gold', label: 'Promotable, keep training', why: `Promotable now, but still +${knownHeadroom} known levels of headroom${knownPairs ? '' : ' (no potentials revealed yet)'}.` };
+    // Headroom only helps if the academy actually trains those skills.
+    const trainedNote = p.trainedHeadroom == null ? ''
+      : p.trainedHeadroom > 0 ? `, +${p.trainedHeadroom} of it in the skills you're training`
+        : ', but none of it in the skills you\'re training now';
+    return { key: 'train_on', tone: 'gold', label: 'Promotable, keep training', why: `Promotable now, but still +${knownHeadroom} known levels of headroom${knownPairs ? '' : ' (no potentials revealed yet)'}${trainedNote}.` };
   }
   if (ceiling === 'low') {
     return { key: 'release_candidate', tone: 'serious', label: 'Low ceiling', why: `Best known ceiling is ${bestText}${evidence}; consider releasing to make room for a better prospect.` };
@@ -92,16 +134,41 @@ function compareSnapshots(prev, cur) {
   return { levelUps, revealed };
 }
 
+/** Compares the reported training with where the known headroom is. Plain notes, most important first. */
+function trainingAdvice(training, headroom) {
+  if (!training || (!training.primary && !training.secondary)) {
+    return ['Youth training wasn\'t reported at the last import, so the page can\'t tell whether it matches the headroom. Fill in primary and secondary training at the next upload.'];
+  }
+  const notes = [];
+  const levelsOf = (skillKey) => headroom.find((h) => h.key === skillKey)?.levels ?? 0;
+  const top = headroom[0];
+  if (training.sameSkill) {
+    notes.push(`Primary and secondary training both train ${SKILL_LABEL[training.primary.skillKey]}; the secondary slot adds little that way. Pick a different skill for it.`);
+  }
+  for (const [slot, t] of [['Primary', training.primary], ['Secondary', training.secondary]]) {
+    if (t && levelsOf(t.skillKey) === 0) {
+      notes.push(`${slot} training (${t.label}) has no known headroom left among players with a decent ceiling in ${SKILL_LABEL[t.skillKey]}.`);
+    }
+  }
+  if (top && top.levels > 0 && !top.trainedAs) {
+    notes.push(`The most known headroom is in ${top.label} (+${top.levels} levels over ${top.players.length} player${top.players.length === 1 ? '' : 's'}), which isn't being trained.`);
+  }
+  if (!notes.length) notes.push('Your youth training lines up with where the known headroom is.');
+  return notes;
+}
+
 function buildYouthAcademy({ now = Date.now() } = {}) {
+  const training = readYouthTraining();
   const rows = db.prepare('SELECT * FROM youth_players WHERE is_active = 1').all();
-  if (rows.length === 0) return { hasYouth: false };
+  if (rows.length === 0) return { hasYouth: false, training };
+  const isTraining = Boolean(training?.primary || training?.secondary);
 
   const snapStmt = db.prepare('SELECT * FROM youth_snapshots WHERE youth_player_id = ? ORDER BY snapshot_date ASC');
 
   const players = rows.map((row) => {
     const elapsed = daysSince(row.as_of_date, now);
     const ageTotal = (row.age_years ?? 0) * DAYS_PER_YEAR + (row.age_days ?? 0) + elapsed;
-    const skills = skillsOf(row);
+    const skills = skillsOf(row, training);
     // Ceiling per skill: the revealed potential, or else the current level
     // as a lower bound (a 6 today can reach at least 6).
     const floors = skills
@@ -132,6 +199,8 @@ function buildYouthAcademy({ now = Date.now() } = {}) {
         : null,
       ceiling: ceilingTier(bestFloor?.level),
       knownHeadroom: skills.reduce((sum, s) => sum + (s.headroom ?? 0), 0),
+      // null when the academy's training wasn't reported at import.
+      trainedHeadroom: isTraining ? skills.reduce((sum, s) => sum + (s.trained ? s.headroom ?? 0 : 0), 0) : null,
       knownPairs,
       // 14 values in all: current + potential for 7 skills.
       revealedPct: Math.round((skills.reduce((n, s) => n + (s.current != null) + (s.potential != null), 0) / (skills.length * 2)) * 100),
@@ -157,6 +226,7 @@ function buildYouthAcademy({ now = Date.now() } = {}) {
       .filter(({ s }) => s.headroom != null && s.headroom > 0 && s.potential > LOW_CEILING);
     return {
       key, label,
+      trainedAs: trainedAs(key, training),
       levels: relevant.reduce((sum, { s }) => sum + s.headroom, 0),
       players: relevant.map(({ p, s }) => ({ name: p.name, from: s.current, to: s.potential })),
     };
@@ -166,6 +236,8 @@ function buildYouthAcademy({ now = Date.now() } = {}) {
   return {
     hasYouth: true,
     asOfDate: asOf,
+    training,
+    trainingAdvice: trainingAdvice(training, trainingHeadroom),
     summary: {
       playerCount: players.length,
       promotableNow: players.filter((p) => p.promotableNow).length,

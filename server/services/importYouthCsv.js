@@ -69,9 +69,14 @@ function skillColumns(headers) {
 }
 
 /**
+ * @param {string} csvText raw file contents
+ * @param {{primaryTypeId: number|null, secondaryTypeId: number|null}} [training]
+ *   the academy's training as set in Hattrick (TRAINING_TYPES ids), reported
+ *   in the upload form since the export doesn't include it. Same rule as the
+ *   senior import: what's left blank is recorded as unknown, not carried over.
  * @returns {{ok: true, playerCount: number, released: number} | {ok: false, errors: string[]}}
  */
-function importYouthCsv(csvText) {
+function importYouthCsv(csvText, training = {}) {
   const { headers, rows } = parseCsv(csvText);
   if (headers.length === 0 || rows.length === 0) {
     return { ok: false, errors: ['The file is empty, or has no data rows below the header row.'] };
@@ -177,6 +182,8 @@ function importYouthCsv(csvText) {
         p.id, date, p.ageYears, p.ageDays, p.lastMatchDate, p.lastMatchRating, p.lastMatchPosition, ...skillParams(p),
       );
     }
+    db.prepare('INSERT OR REPLACE INTO youth_training_log (log_date, primary_type_id, secondary_type_id) VALUES (?, ?, ?)')
+      .run(date, training.primaryTypeId ?? null, training.secondaryTypeId ?? null);
     return db.prepare(`UPDATE youth_players SET is_active = 0 WHERE is_active = 1 AND youth_player_id NOT IN (SELECT value FROM json_each(?))`)
       .run(JSON.stringify(players.map((p) => p.id))).changes;
   });

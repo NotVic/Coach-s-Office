@@ -65,9 +65,3 @@ function posClass(code) {
   if (['IM', 'WI'].includes(code)) return 'pos-mid';
   return 'pos-att';
 }
-
-// Youth academy CSV upload — shared by the Youth page and Settings. Throws
-// like apiPost; per-row problems are on err.data.rowErrors.
-async function uploadYouthCsv(file) {
-  return apiPost('/api/csv/youth-import', { csv: await file.text() });
-}

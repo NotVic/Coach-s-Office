@@ -221,6 +221,20 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    // The academy's primary/secondary training as reported at each youth
+    // CSV import (the export itself doesn't carry it), one row per import day.
+    name: '004_youth_training_log',
+    up() {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS youth_training_log (
+          log_date          TEXT PRIMARY KEY,
+          primary_type_id   INTEGER,
+          secondary_type_id INTEGER
+        )
+      `);
+    },
+  },
 ];
 
 function numOrNull(v) {

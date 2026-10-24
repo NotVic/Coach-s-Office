@@ -1,7 +1,6 @@
 const content = document.getElementById('content');
 const pageSub = document.getElementById('pageSub');
-const importMsg = document.getElementById('importMsg');
-const youthFile = document.getElementById('youthFile');
+const importCard = document.getElementById('importCard');
 
 const SHORT = { keeper: 'GK', defending: 'DEF', playmaking: 'PM', winger: 'WG', passing: 'PS', scoring: 'SC', setpieces: 'SP' };
 
@@ -63,7 +62,7 @@ function headroomSection(data) {
   const body = useful.length
     ? useful.map((t) => `
       <div class="yheadroom">
-        <span class="ylabel">${t.label}</span>
+        <span class="ylabel">${t.label}${t.trainedAs ? ` <span class="chip ${t.trainedAs === 'primary' ? 'good' : 'gold'}">${t.trainedAs}</span>` : ''}</span>
         <div class="meter-track"><div class="meter-fill" style="width:${Math.round((t.levels / maxLevels) * 100)}%"></div></div>
         <span class="mono">+${t.levels}</span>
         <span class="muted yplayers">${t.players.map((p) => `${esc(p.name)} ${p.from}→${p.to}`).join(' · ')}</span>
@@ -71,8 +70,9 @@ function headroomSection(data) {
     : '<p class="muted" style="margin:0;font-size:13px;">No known headroom left for players with a passable-or-better ceiling. Reveal more potentials (matches, scout reports), or the academy is fully trained.</p>';
   return `<div class="card" style="margin-top:16px;">
     <h3 style="margin-bottom:4px;">Where youth training still pays off</h3>
-    <p class="muted" style="font-size:12.5px;margin:0 0 12px;">Known levels left to gain per skill (potential minus current), counted only for players whose potential in it is above inadequate. A strong hint for your primary youth training.</p>
+    <p class="muted" style="font-size:12.5px;margin:0 0 12px;">Known levels left to gain per skill (potential minus current), counted only for players whose potential in it is above inadequate. Skills your academy trains right now are marked primary / secondary.</p>
     ${body}
+    ${(data.trainingAdvice || []).length ? `<div class="banner info" style="margin:12px 0 0;">${data.trainingAdvice.map(esc).join('<br>')}</div>` : ''}
   </div>`;
 }
 
@@ -110,13 +110,16 @@ function tableSection(data) {
 
   return `<div class="halfway"></div>
   <div class="page-head" style="margin-bottom:12px;"><h2>Players</h2>
-    <span class="muted" style="font-size:12.5px;">Skills shown as current<span class="ymax">/potential</span>; ? = not revealed yet; green = maxed out</span>
+    <span class="muted" style="font-size:12.5px;">Skills shown as current<span class="ymax">/potential</span>; ? = not revealed yet; green = maxed out; ● primary / ○ secondary training</span>
   </div>
   <div class="card" style="overflow-x:auto;">
     <table class="wf-table ytable">
       <thead><tr>
         <th>Player</th><th>Age</th><th>Promote</th><th>Role</th><th>Ceiling</th>
-        ${Object.values(SHORT).map((s) => `<th>${s}</th>`).join('')}
+        ${Object.entries(SHORT).map(([key, s]) => {
+          const as = data.players[0]?.skills.find((x) => x.key === key)?.trained;
+          return `<th${as ? ` class="ytrained" title="${as} training"` : ''}>${s}${as ? (as === 'primary' ? ' ●' : ' ○') : ''}</th>`;
+        }).join('')}
         <th>Known</th><th>Last match</th><th>Call</th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -135,12 +138,17 @@ function tableSection(data) {
 function render(data) {
   if (!data.hasYouth) {
     pageSub.textContent = 'No youth players imported yet';
+    importCard.open = true;
     content.innerHTML = `<div class="empty-state"><b>No youth academy data yet</b>
       Export your youth players from Hattrick as CSV (the youthplayers_….csv file) and use <b>Import youth CSV</b> above.
       Re-import every week or so: each import is kept as a snapshot, so level-ups and newly revealed potentials show up here.</div>`;
     return;
   }
-  pageSub.textContent = `${data.summary.playerCount} players · as of import ${formatDate(data.asOfDate)}`;
+  const t = data.training;
+  pageSub.textContent = `${data.summary.playerCount} players · as of import ${formatDate(data.asOfDate)}`
+    + (t && (t.primary || t.secondary)
+      ? ` · training ${t.primary?.label ?? '—'} / ${t.secondary?.label ?? '—'}`
+      : ' · youth training not reported');
   content.innerHTML = tiles(data) + headroomSection(data) + changesSection(data) + tableSection(data);
 }
 
@@ -152,20 +160,8 @@ async function load() {
   }
 }
 
-youthFile.addEventListener('change', async () => {
-  const file = youthFile.files[0];
-  if (!file) return;
-  importMsg.innerHTML = '<div class="banner info">Importing…</div>';
-  try {
-    const result = await uploadYouthCsv(file);
-    importMsg.innerHTML = `<div class="banner good">Imported ${result.playerCount} youth players${result.released ? ` · ${result.released} no longer in the academy` : ''}.</div>`;
-    await load();
-  } catch (err) {
-    const rowErrors = err.data?.rowErrors || [];
-    importMsg.innerHTML = `<div class="banner error">${[esc(err.message), ...rowErrors.map((e) => `• ${esc(e)}`)].join('<br>')}</div>`;
-  } finally {
-    youthFile.value = '';
-  }
+mountYouthImportForm(document.getElementById('importForm'), { onImported: load }).catch((err) => {
+  document.getElementById('importForm').innerHTML = `<div class="banner error">${esc(err.message)}</div>`;
 });
 
 load();

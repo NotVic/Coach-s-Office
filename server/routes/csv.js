@@ -108,9 +108,17 @@ router.post('/import', express.json({ limit: '2mb' }), (req, res) => {
 // Youth academy: Hattrick's youth-players export, as-is. Separate from the
 // squad import above — it touches only the youth tables.
 router.post('/youth-import', express.json({ limit: '2mb' }), (req, res) => {
-  const { csv } = req.body || {};
+  const { csv, primaryTypeId, secondaryTypeId } = req.body || {};
   if (!csv || !csv.trim()) return res.status(400).json({ error: 'No CSV content received.' });
-  const result = importYouthCsv(csv);
+  const training = {};
+  for (const [field, raw, label] of [['primaryTypeId', primaryTypeId, 'Primary'], ['secondaryTypeId', secondaryTypeId, 'Secondary']]) {
+    const id = numberOrNull(raw);
+    if (id === undefined || (id != null && !TRAINING_TYPES[id])) {
+      return res.status(400).json({ error: `${label} training "${raw}" isn't a recognized Hattrick training type.` });
+    }
+    training[field] = id;
+  }
+  const result = importYouthCsv(csv, training);
   if (!result.ok) {
     return res.status(400).json({ error: 'The youth CSV has errors — nothing was imported.', rowErrors: result.errors });
   }

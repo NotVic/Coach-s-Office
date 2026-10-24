@@ -308,21 +308,11 @@ async function saveSchedule() {
   }
 }
 
-// ---- Youth academy CSV card (static markup in settings.html) -----------
+// ---- Youth academy CSV card (form shared with the Youth page) ----------
 
-document.getElementById('youthCsvFile').addEventListener('change', async (e) => {
-  const input = e.target;
-  const msgEl = document.getElementById('youthCsvMsg');
-  if (!input.files[0]) return;
-  try {
-    const result = await uploadYouthCsv(input.files[0]);
-    msgEl.innerHTML = `<div class="banner good">Imported ${result.playerCount} youth players. <a href="/youth.html">Open the Youth Academy →</a></div>`;
-  } catch (err) {
-    const rowErrors = err.data?.rowErrors || [];
-    msgEl.innerHTML = `<div class="banner error">${[err.message, ...rowErrors.map((r) => `• ${r}`)].join('<br>')}</div>`;
-  } finally {
-    input.value = '';
-  }
+const youthImportForm = document.getElementById('youthImportForm');
+mountYouthImportForm(youthImportForm).catch((err) => {
+  youthImportForm.innerHTML = `<div class="banner error">${err.message}</div>`;
 });
 
 // ---- Assistant (Anthropic API key) card --------------------------------
