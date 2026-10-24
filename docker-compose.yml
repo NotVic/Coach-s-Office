@@ -20,6 +20,10 @@ services:
       # the Settings page after first boot.
       # - CHPP_CONSUMER_KEY=
       # - CHPP_CONSUMER_SECRET=
+      #
+      # Optional: Anthropic API key for the Assistant page (can also be
+      # entered in Settings).
+      # - ANTHROPIC_API_KEY=
     restart: unless-stopped
 
 volumes:

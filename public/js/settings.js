@@ -1,6 +1,7 @@
 const connectCard = document.getElementById('connectCard');
 const csvCard = document.getElementById('csvCard');
 const scheduleCard = document.getElementById('scheduleCard');
+const advisorCard = document.getElementById('advisorCard');
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -310,22 +311,68 @@ async function saveSchedule() {
   }
 }
 
+// ---- Assistant (Anthropic API key) card --------------------------------
+
+let advisorStatus = null;
+
+function renderAdvisorCard() {
+  const configuredText = {
+    settings: 'A key is saved in this app\'s database.',
+    env: 'Using the ANTHROPIC_API_KEY environment variable. A key saved here would take precedence.',
+  }[advisorStatus.source] || 'No key configured yet.';
+  advisorCard.innerHTML = `
+    <h3 style="margin-bottom:6px;">Assistant (Claude API)</h3>
+    <p style="font-size:13px;color:var(--sb-text-secondary);margin:0 0 12px;">
+      The <a href="/advisor.html">Assistant</a> page uses your own Anthropic API key (model <code>${advisorStatus.model}</code>).
+      Questions and the squad data the assistant looks up are sent to Anthropic's API; usage is billed to your Anthropic account.
+      ${configuredText}
+    </p>
+    <div id="advisorMsg"></div>
+    <div class="field"><label for="anthropicKey">Anthropic API key</label><input type="password" id="anthropicKey" autocomplete="off" placeholder="sk-ant-…"></div>
+    <button class="pill-btn primary" id="saveAnthropicKeyBtn">Save key</button>
+    ${advisorStatus.source === 'settings' ? '<button class="pill-btn" id="clearAnthropicKeyBtn" style="margin-left:8px;">Remove saved key</button>' : ''}
+  `;
+  document.getElementById('saveAnthropicKeyBtn').addEventListener('click', saveAnthropicKey);
+  document.getElementById('clearAnthropicKeyBtn')?.addEventListener('click', () => updateAnthropicKey({ clear: true }, 'Saved key removed.'));
+}
+
+function saveAnthropicKey() {
+  const apiKey = document.getElementById('anthropicKey').value.trim();
+  updateAnthropicKey({ apiKey }, 'Key verified and saved.');
+}
+
+async function updateAnthropicKey(body, successText) {
+  const btn = document.getElementById('saveAnthropicKeyBtn');
+  btn.disabled = true;
+  try {
+    await apiPost('/api/advisor/key', body);
+    advisorStatus = await apiGet('/api/advisor/status');
+    renderAdvisorCard();
+    document.getElementById('advisorMsg').innerHTML = `<div class="banner good">${successText}</div>`;
+  } catch (err) {
+    btn.disabled = false;
+    document.getElementById('advisorMsg').innerHTML = `<div class="banner error">${err.message}</div>`;
+  }
+}
+
 // ---- Boot ------------------------------------------------------------
 
 async function load() {
   try {
     let scheduleRes, typesRes;
-    [status, scheduleRes, typesRes, csvDefaults] = await Promise.all([
+    [status, scheduleRes, typesRes, csvDefaults, advisorStatus] = await Promise.all([
       apiGet('/api/chpp/status'),
       apiGet('/api/settings/schedule'),
       apiGet('/api/settings/training-types'),
       apiGet('/api/csv/defaults'),
+      apiGet('/api/advisor/status'),
     ]);
     schedule = scheduleRes.schedule;
     trainingTypes = typesRes.types;
     renderConnectCard();
     renderCsvCard();
     renderScheduleCard();
+    renderAdvisorCard();
   } catch (err) {
     connectCard.innerHTML = `<div class="banner error">${err.message}</div>`;
   }

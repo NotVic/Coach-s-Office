@@ -12,6 +12,7 @@ const matchPrepRouter = require('./routes/matchPrep');
 const digestRouter = require('./routes/digest');
 const settingsRouter = require('./routes/settings');
 const csvRouter = require('./routes/csv');
+const advisorRouter = require('./routes/advisor');
 const scheduler = require('./services/scheduler');
 
 const app = express();
@@ -47,6 +48,7 @@ app.use('/api/match-prep', matchPrepRouter);
 app.use('/api/digest', digestRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/csv', csvRouter);
+app.use('/api/advisor', advisorRouter);
 
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   console.error(err);

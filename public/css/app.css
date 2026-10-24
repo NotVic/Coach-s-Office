@@ -188,6 +188,39 @@ svg.chart .dot { fill: var(--sb-surface); stroke: var(--sb-accent); stroke-width
 .banner.error { background: rgba(208, 59, 59, .08); border: 1px solid rgba(208, 59, 59, .25); color: var(--sb-status-critical-text); }
 .banner.good { background: rgba(12, 163, 12, .08); border: 1px solid rgba(12, 163, 12, .25); color: var(--sb-status-good-text); }
 
+/* ---- Assistant chat ---- */
+.quick-prompts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.chat-log { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+.chat-msg { font-size: 14px; line-height: 1.55; }
+.chat-msg.user {
+  align-self: flex-end; max-width: 80%; white-space: pre-wrap; background: var(--sb-accent-tint-10);
+  border: 1px solid var(--sb-accent-tint-20); border-radius: var(--sb-radius-md); padding: 10px 14px;
+}
+.chat-msg.assistant {
+  background: var(--sb-surface); border: 1px solid var(--sb-border); border-radius: var(--sb-radius-md);
+  box-shadow: var(--sb-shadow-card); padding: 14px 16px;
+}
+.chat-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.chat-tools:not(:empty) { margin-bottom: 10px; }
+.chat-tools .chip { color: var(--sb-text-muted); background: var(--sb-surface-sunken); border: 1px solid var(--sb-border); }
+.chat-body > :first-child { margin-top: 0; }
+.chat-body > :last-child { margin-bottom: 0; }
+.chat-body p, .chat-body ul, .chat-body ol { margin: 0 0 10px; }
+.chat-body ul, .chat-body ol { padding-left: 22px; }
+.chat-body h3, .chat-body h4, .chat-body h5 { margin: 14px 0 6px; font-size: 15px; }
+.chat-body code { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; background: var(--sb-surface-sunken); padding: 1px 4px; border-radius: 4px; }
+.md-table { overflow-x: auto; margin: 0 0 10px; }
+.md-table table { border-collapse: collapse; font-size: 13px; }
+.md-table th, .md-table td { text-align: left; padding: 5px 10px; border-bottom: 1px solid var(--sb-border); }
+.md-table th { font-weight: 600; color: var(--sb-text-secondary); }
+.chat-form { position: sticky; bottom: 16px; padding: 10px 12px; }
+.chat-form textarea {
+  width: 100%; box-sizing: border-box; resize: vertical; border: none; outline: none; background: transparent;
+  font: inherit; font-size: 14px; color: var(--sb-text-primary);
+}
+.chat-form-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.chat-form-row .caption { margin-right: auto; }
+
 @media (max-width: 1080px) {
   .cols-3, .cols-4, .squad-grid { grid-template-columns: repeat(2, 1fr); }
   .cols-12 [class^="span-"] { grid-column: span 12; }
