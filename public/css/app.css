@@ -32,6 +32,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, [tabindex]:focus-vis
 .nav {
   width: 212px; flex: none; background: var(--sb-surface); border-right: 1px solid var(--sb-border);
   padding: 20px 14px; display: flex; flex-direction: column; gap: 22px;
+  /* Stays put while the page scrolls; scrolls itself only if it's taller than the window. */
+  position: sticky; top: 0; height: 100vh; box-sizing: border-box; overflow-y: auto; align-self: flex-start;
 }
 .nav-brand { display: flex; align-items: center; gap: 8px; padding: 0 6px; text-decoration: none; color: inherit; }
 .nav-brand svg { flex: none; }
@@ -275,7 +277,8 @@ table.wf-table.ytable th.ytrained { color: var(--sb-accent); }
   /* Phone: the nav becomes a sticky top bar with a fold-out menu. */
   .app-shell { flex-direction: column; }
   .nav {
-    width: auto; padding: 10px 16px; gap: 0; position: sticky; top: 0; z-index: 20;
+    width: auto; height: auto; overflow: visible; align-self: stretch;
+    padding: 10px 16px; gap: 0; position: sticky; top: 0; z-index: 20;
     border-right: none; border-bottom: 1px solid var(--sb-border);
   }
   .nav-toggle { display: inline-flex; }
