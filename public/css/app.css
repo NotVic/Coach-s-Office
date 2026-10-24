@@ -43,6 +43,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, [tabindex]:focus-vis
 }
 .nav-item.active { background: var(--sb-accent-tint-10); color: var(--sb-accent); font-weight: 600; }
 .nav-item svg { flex: none; opacity: .85; }
+.nav-top { display: flex; align-items: center; justify-content: space-between; }
+.nav-toggle {
+  display: none; background: none; border: 1px solid var(--sb-border); border-radius: var(--sb-radius-sm);
+  padding: 4px 6px; color: var(--sb-text-secondary); cursor: pointer;
+}
 .main { flex: 1; min-width: 0; padding: 28px 32px 64px; max-width: 1400px; }
 .page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
 .page-head .sub { font-size: 13px; color: var(--sb-text-muted); margin-top: 2px; }
@@ -251,6 +256,16 @@ table.wf-table.ytable th.ytrained { color: var(--sb-accent); }
   .cols-12 [class^="span-"] { grid-column: span 12; }
 }
 @media (max-width: 768px) {
-  .nav { display: none; }
+  /* Phone: the nav becomes a sticky top bar with a fold-out menu. */
+  .app-shell { flex-direction: column; }
+  .nav {
+    width: auto; padding: 10px 16px; gap: 0; position: sticky; top: 0; z-index: 20;
+    border-right: none; border-bottom: 1px solid var(--sb-border);
+  }
+  .nav-toggle { display: inline-flex; }
+  .nav .nav-group { display: none; padding-top: 10px; }
+  .nav.open .nav-group { display: flex; }
+  .main { padding: 18px 16px 48px; }
+  .page-head { align-items: flex-start; }
   .cols-2, .cols-3, .cols-4, .squad-grid { grid-template-columns: 1fr; }
 }

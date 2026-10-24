@@ -18,12 +18,18 @@
   if (!mount) return;
   const current = document.body.dataset.page;
 
+  // On phones the nav is a top bar; the menu button folds the items open.
   mount.innerHTML = `
-    <a class="nav-brand" href="/index.html">
-      <svg width="18" height="18" viewBox="0 0 18 18"><path d="M2 16 A14 14 0 0 1 16 2" fill="none" stroke="var(--sb-accent)" stroke-width="2.4" stroke-linecap="round"/></svg>
-      <span>Coach's Office</span>
-    </a>
-    <div class="nav-group">
+    <div class="nav-top">
+      <a class="nav-brand" href="/index.html">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path d="M2 16 A14 14 0 0 1 16 2" fill="none" stroke="var(--sb-accent)" stroke-width="2.4" stroke-linecap="round"/></svg>
+        <span>Coach's Office</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="navGroup">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+    <div class="nav-group" id="navGroup">
       ${ITEMS.filter((item) => !item.hidden || item.page === current).map((item) => `
         <a class="nav-item${item.page === current ? ' active' : ''}" href="${item.href}">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${item.icon}</svg>
@@ -31,4 +37,10 @@
         </a>`).join('')}
     </div>
   `;
+
+  const toggle = mount.querySelector('.nav-toggle');
+  toggle.addEventListener('click', () => {
+    const open = mount.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', String(open));
+  });
 })();

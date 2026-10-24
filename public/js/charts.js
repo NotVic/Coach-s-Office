@@ -9,6 +9,15 @@ const Charts = (() => {
     return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   }
 
+  /** Short axis labels (275,650 → 276k, 18,443,000 → 18.4M) so they fit the left margin; exact values stay in tooltips. */
+  function compact(v) {
+    const a = Math.abs(v);
+    if (a >= 1e6) return `${(v / 1e6).toFixed(a >= 1e7 ? 1 : 2)}M`;
+    if (a >= 1e4) return `${Math.round(v / 1e3)}k`;
+    if (a >= 1e3) return `${(v / 1e3).toFixed(1)}k`;
+    return String(Math.round(v));
+  }
+
   /** Trend line/area chart. points: [{label, value}], ascending. */
   function lineChart(points, { width = 520, height = 160, color = 'var(--sb-accent)', valueFormat = (v) => Math.round(v).toLocaleString() } = {}) {
     const padLeft = 40, padRight = 10, padTop = 10, padBottom = 26;
@@ -28,7 +37,7 @@ const Charts = (() => {
       const gy = padTop + f * plotH;
       const val = max - f * span;
       return `<line class="grid-line" x1="${padLeft}" y1="${gy.toFixed(1)}" x2="${width - padRight}" y2="${gy.toFixed(1)}" stroke="var(--sb-gridline)"/>` +
-        `<text x="${padLeft - 6}" y="${(gy + 3).toFixed(1)}" text-anchor="end">${esc(valueFormat(val))}</text>`;
+        `<text x="${padLeft - 6}" y="${(gy + 3).toFixed(1)}" text-anchor="end">${esc(Math.abs(val) >= 1000 ? compact(val) : valueFormat(val))}</text>`;
     }).join('');
 
     const linePoints = clean.map((p, i) => `${x(i).toFixed(1)} ${y(p.value).toFixed(1)}`).join(' L ');
@@ -39,8 +48,10 @@ const Charts = (() => {
     ).join('');
 
     const labelIdxs = clean.length <= 5 ? clean.map((_, i) => i) : [0, Math.floor((clean.length - 1) / 2), clean.length - 1];
+    // First/last labels anchor inward so they don't get clipped at the edges.
+    const anchor = (i) => (i === 0 ? 'start' : i === clean.length - 1 ? 'end' : 'middle');
     const labels = labelIdxs.map((i) =>
-      `<text x="${x(i).toFixed(1)}" y="${height - 6}" text-anchor="middle">${esc(clean[i].label)}</text>`
+      `<text x="${x(i).toFixed(1)}" y="${height - 6}" text-anchor="${anchor(i)}">${esc(clean[i].label)}</text>`
     ).join('');
 
     return `<svg class="chart" viewBox="0 0 ${width} ${height}" width="100%" height="${height}">
