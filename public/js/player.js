@@ -140,7 +140,7 @@ function trainingFocusBanner(trainingFocus) {
 }
 
 function render(data) {
-  const { player, skills, trainedSkillKey, trainingFocus, tsiHistory, valueHistory, ratingHistory } = data;
+  const { player, skills, trainedSkillKey, trainingFocus, tsiHistory, ratingHistory } = data;
 
   content.innerHTML = `<div class="grid cols-12">
     <div class="span-4">${sidebarHtml(player)}</div>
@@ -155,9 +155,8 @@ function render(data) {
       </div>
       <div class="grid cols-2">
         ${historyChartCard('TSI history', tsiHistory.map((h) => ({ label: shortLabel(h.date), value: h.tsi })), 'var(--sb-accent)', undefined, { enlargeable: true })}
-        ${historyChartCard('Value history (est.)', valueHistory.map((h) => ({ label: shortLabel(h.date), value: h.value })), 'var(--sb-accent-gold)')}
+        ${ratingChartCard(ratingHistory)}
       </div>
-      ${ratingChartCard(ratingHistory)}
     </div>
   </div>`;
 }
