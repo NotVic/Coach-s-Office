@@ -24,11 +24,9 @@ function renderStatBar(data) {
     ? (players.reduce((s, p) => s + (p.ageYears || 0), 0) / players.length).toFixed(1)
     : '—';
   const tsiDelta = data.previous ? formatDelta(data.latest.team_tsi - data.previous.team_tsi) : { text: '—', cls: 'flat' };
-  const worthDelta = data.previous ? formatDelta(data.latest.team_worth - data.previous.team_worth) : { text: '—', cls: 'flat' };
 
   return `<div class="card" style="display:flex;gap:32px;align-items:center;padding:12px 18px;margin-bottom:16px;flex-wrap:wrap;">
     <div><span class="caption">Team TSI</span><br><span class="mono" style="font-weight:600;font-size:16px;">${formatNumber(data.latest?.team_tsi)}</span> <span class="delta ${tsiDelta.cls}" style="margin-left:4px;">${tsiDelta.text}</span></div>
-    <div><span class="caption">Team Worth (est.)</span><br><span class="mono" style="font-weight:600;font-size:16px;">~${formatNumber(data.latest?.team_worth)}</span> <span class="delta ${worthDelta.cls}" style="margin-left:4px;">${worthDelta.text}</span></div>
     <div><span class="caption">Squad size</span><br><span class="mono" style="font-weight:600;font-size:16px;">${players.length}</span></div>
     <div><span class="caption">Avg. age</span><br><span class="mono" style="font-weight:600;font-size:16px;">${avgAge}</span></div>
   </div>`;
@@ -36,7 +34,6 @@ function renderStatBar(data) {
 
 function renderCharts(data) {
   const tsiPoints = data.snapshots.map((s) => ({ label: s.snapshot_date.slice(5), value: s.team_tsi }));
-  const worthPoints = data.snapshots.map((s) => ({ label: s.snapshot_date.slice(5), value: s.team_worth }));
 
   const ageBars = Object.entries(data.ageDistribution)
     .sort((a, b) => (a[0] === 'Unknown' ? 1 : b[0] === 'Unknown' ? -1 : Number(a[0]) - Number(b[0])))
@@ -49,14 +46,14 @@ function renderCharts(data) {
     { label: 'ATT', value: data.positionComposition.att },
   ];
 
-  return `<div class="grid cols-4">
+  // Team Worth (sum of the per-player value estimates) is no longer shown:
+  // the estimate is TSI-based and too far from real transfer prices to add
+  // insight. It is still recorded in team_snapshots.
+  const enlarge = Charts.enlargeButton({ title: 'Team TSI', subtitle: 'trend over tracked history', points: tsiPoints, color: 'var(--sb-accent)' });
+  return `<div class="grid cols-3">
     <div class="card chart-card">
-      <div class="card-head"><h3>Team TSI</h3><span class="muted" style="font-size:12px">trend over tracked history</span></div>
+      <div class="card-head"><h3>Team TSI</h3><span class="head-right"><span class="muted" style="font-size:12px">trend over tracked history</span>${enlarge}</span></div>
       <div class="plot">${Charts.lineChart(tsiPoints, { color: 'var(--sb-accent)' })}</div>
-    </div>
-    <div class="card chart-card">
-      <div class="card-head"><h3>Team Worth</h3><span class="muted" style="font-size:12px">~ estimated, see Settings</span></div>
-      <div class="plot">${Charts.lineChart(worthPoints, { color: 'var(--sb-accent-gold)' })}</div>
     </div>
     <div class="card chart-card">
       <div class="card-head"><h3>Age Distribution</h3><span class="muted" style="font-size:12px">${data.players.length} players</span></div>

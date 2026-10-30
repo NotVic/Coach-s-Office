@@ -84,9 +84,10 @@ function sidebarHtml(p) {
   </div>`;
 }
 
-function historyChartCard(title, points, color, valueFormat) {
+function historyChartCard(title, points, color, valueFormat, { enlargeable = false } = {}) {
+  const enlarge = enlargeable ? Charts.enlargeButton({ title, points, color, valueFormat }) : '';
   return `<div class="card chart-card">
-    <div class="card-head"><h3>${title}</h3></div>
+    <div class="card-head"><h3>${title}</h3>${enlarge}</div>
     <div class="plot">${Charts.lineChart(points, { color, valueFormat })}</div>
   </div>`;
 }
@@ -153,7 +154,7 @@ function render(data) {
         ${skills.map((s) => skillMeterHtml(s, s.key === trainedSkillKey)).join('')}
       </div>
       <div class="grid cols-2">
-        ${historyChartCard('TSI history', tsiHistory.map((h) => ({ label: shortLabel(h.date), value: h.tsi })), 'var(--sb-accent)')}
+        ${historyChartCard('TSI history', tsiHistory.map((h) => ({ label: shortLabel(h.date), value: h.tsi })), 'var(--sb-accent)', undefined, { enlargeable: true })}
         ${historyChartCard('Value history (est.)', valueHistory.map((h) => ({ label: shortLabel(h.date), value: h.value })), 'var(--sb-accent-gold)')}
       </div>
       ${ratingChartCard(ratingHistory)}

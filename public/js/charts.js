@@ -18,9 +18,13 @@ const Charts = (() => {
     return String(Math.round(v));
   }
 
-  /** Trend line/area chart. points: [{label, value}], ascending. */
-  function lineChart(points, { width = 520, height = 160, color = 'var(--sb-accent)', valueFormat = (v) => Math.round(v).toLocaleString() } = {}) {
-    const padLeft = 40, padRight = 10, padTop = 10, padBottom = 26;
+  /**
+   * Trend line/area chart. points: [{label, value}], ascending.
+   * detailed: the enlarged view, with more gridlines and x labels and a
+   * hoverable dot on every point instead of only the first and last.
+   */
+  function lineChart(points, { width = 520, height = 160, color = 'var(--sb-accent)', valueFormat = (v) => Math.round(v).toLocaleString(), detailed = false } = {}) {
+    const padLeft = detailed ? 56 : 40, padRight = 10, padTop = 10, padBottom = 26;
     const plotW = width - padLeft - padRight, plotH = height - padTop - padBottom;
     const clean = points.filter((p) => p.value != null);
     if (clean.length < 2) {
@@ -33,7 +37,8 @@ const Charts = (() => {
     const x = (i) => padLeft + (i / (clean.length - 1)) * plotW;
     const y = (v) => padTop + plotH - ((v - min) / span) * plotH;
 
-    const gridLines = [0, 0.5, 1].map((f) => {
+    const gridSteps = detailed ? [0, 0.25, 0.5, 0.75, 1] : [0, 0.5, 1];
+    const gridLines = gridSteps.map((f) => {
       const gy = padTop + f * plotH;
       const val = max - f * span;
       return `<line class="grid-line" x1="${padLeft}" y1="${gy.toFixed(1)}" x2="${width - padRight}" y2="${gy.toFixed(1)}" stroke="var(--sb-gridline)"/>` +
@@ -43,11 +48,17 @@ const Charts = (() => {
     const linePoints = clean.map((p, i) => `${x(i).toFixed(1)} ${y(p.value).toFixed(1)}`).join(' L ');
     const areaPath = `M ${linePoints} L ${x(clean.length - 1).toFixed(1)} ${(padTop + plotH).toFixed(1)} L ${x(0).toFixed(1)} ${(padTop + plotH).toFixed(1)} Z`;
 
-    const dots = [0, clean.length - 1].map((i) =>
-      `<circle class="dot" cx="${x(i).toFixed(1)}" cy="${y(clean[i].value).toFixed(1)}" r="3"><title>${esc(valueFormat(clean[i].value))}</title></circle>`
+    const dotIdxs = detailed ? clean.map((_, i) => i) : [0, clean.length - 1];
+    const dots = dotIdxs.map((i) =>
+      `<circle class="dot" cx="${x(i).toFixed(1)}" cy="${y(clean[i].value).toFixed(1)}" r="${detailed ? 3.5 : 3}"><title>${esc(detailed ? `${clean[i].label}: ` : '')}${esc(valueFormat(clean[i].value))}</title></circle>`
     ).join('');
 
-    const labelIdxs = clean.length <= 5 ? clean.map((_, i) => i) : [0, Math.floor((clean.length - 1) / 2), clean.length - 1];
+    const maxLabels = detailed ? 10 : 5;
+    const labelIdxs = clean.length <= maxLabels
+      ? clean.map((_, i) => i)
+      : detailed
+        ? [...new Set(Array.from({ length: maxLabels }, (_, k) => Math.round((k * (clean.length - 1)) / (maxLabels - 1))))]
+        : [0, Math.floor((clean.length - 1) / 2), clean.length - 1];
     // First/last labels anchor inward so they don't get clipped at the edges.
     const anchor = (i) => (i === 0 ? 'start' : i === clean.length - 1 ? 'end' : 'middle');
     const labels = labelIdxs.map((i) =>
@@ -242,5 +253,54 @@ const Charts = (() => {
     </svg>`;
   }
 
-  return { lineChart, barChart, divergingBarChart, dumbbellChart, stackedProbBar, groupedHBar, sparkline, pitchDiagram };
+  // Enlarge: a card renders enlargeButton(spec) in its header; clicking it
+  // redraws the same points as a detailed line chart in a modal dialog.
+  // spec: {title, subtitle?, points, color?, valueFormat?}
+  const enlargeSpecs = [];
+
+  function enlargeButton(spec) {
+    const id = enlargeSpecs.push(spec) - 1;
+    return `<button type="button" class="enlarge-btn" data-enlarge="${id}" title="Enlarge chart" aria-label="Enlarge ${esc(spec.title)} chart">⤢</button>`;
+  }
+
+  function openEnlarged(spec) {
+    let dialog = document.getElementById('chartDialog');
+    if (!dialog) {
+      dialog = document.createElement('dialog');
+      dialog.id = 'chartDialog';
+      dialog.className = 'chart-dialog';
+      // A click on the backdrop lands on the dialog element itself.
+      dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
+      document.body.appendChild(dialog);
+    }
+    const clean = spec.points.filter((p) => p.value != null);
+    const fmt = spec.valueFormat || ((v) => Math.round(v).toLocaleString());
+    let summary = '';
+    if (clean.length >= 2) {
+      const first = clean[0], last = clean[clean.length - 1];
+      const delta = last.value - first.value;
+      const pct = first.value ? ` (${delta >= 0 ? '+' : ''}${((delta / first.value) * 100).toFixed(1)}%)` : '';
+      const values = clean.map((p) => p.value);
+      summary = `<div class="chart-dialog-stats">
+        <span>${esc(first.label)} → ${esc(last.label)}: <b>${esc(fmt(first.value))} → ${esc(fmt(last.value))}</b>
+          <span style="color:${delta >= 0 ? 'var(--sb-status-good-text)' : 'var(--sb-status-critical-text)'};">${delta >= 0 ? '+' : ''}${esc(fmt(delta))}${pct}</span></span>
+        <span>Low <b>${esc(fmt(Math.min(...values)))}</b> · High <b>${esc(fmt(Math.max(...values)))}</b> · ${clean.length} snapshots</span>
+      </div>`;
+    }
+    dialog.innerHTML = `<div class="card-head">
+        <div><h3>${esc(spec.title)}</h3>${spec.subtitle ? `<span class="muted" style="font-size:12px;">${esc(spec.subtitle)}</span>` : ''}</div>
+        <button type="button" class="enlarge-btn" data-close aria-label="Close">✕</button>
+      </div>
+      ${summary}
+      <div class="plot">${lineChart(spec.points, { width: 960, height: 400, color: spec.color, valueFormat: fmt, detailed: true })}</div>`;
+    dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
+    dialog.showModal();
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-enlarge]');
+    if (btn) openEnlarged(enlargeSpecs[Number(btn.dataset.enlarge)]);
+  });
+
+  return { lineChart, enlargeButton, barChart, divergingBarChart, dumbbellChart, stackedProbBar, groupedHBar, sparkline, pitchDiagram };
 })();

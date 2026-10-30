@@ -21,12 +21,10 @@ function render(data) {
   pageSub.textContent = `Comparing ${formatDate(data.previousDate)} → ${formatDate(data.currentDate)}`;
 
   const tsiDelta = formatDelta(data.team.tsiDelta);
-  const worthDelta = formatDelta(data.team.worthDelta);
   const cashDelta = formatDelta(data.team.cashDelta);
 
-  const statBar = `<div class="grid cols-3" style="margin-bottom:16px;">
+  const statBar = `<div class="grid cols-2" style="margin-bottom:16px;">
     <div class="card stat-tile"><span class="caption">Team TSI change</span><span class="delta ${tsiDelta.cls}" style="font-size:16px;padding:4px 8px;">${tsiDelta.text}</span></div>
-    <div class="card stat-tile"><span class="caption">Team Worth change (est.)</span><span class="delta ${worthDelta.cls}" style="font-size:16px;padding:4px 8px;">${worthDelta.text}</span></div>
     <div class="card stat-tile"><span class="caption">Cash change</span><span class="delta ${cashDelta.cls}" style="font-size:16px;padding:4px 8px;">${cashDelta.text}</span></div>
   </div>`;
 

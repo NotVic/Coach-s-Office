@@ -4,7 +4,7 @@ A self-hosted companion dashboard for [Hattrick](https://www.hattrick.org) —
 the browser football manager game. It reads your squad via Hattrick's CHPP
 API and helps you answer the questions a manager checks every week:
 
-1. **How is my squad doing, overall?** — Team TSI & Worth over time, age
+1. **How is my squad doing, overall?** — Team TSI over time, age
    distribution, squad composition by position line, weekly net income, and
    a persistent "needs attention" panel (injuries, recent level-ups,
    players whose value estimate just started falling).
